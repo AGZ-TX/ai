@@ -1,0 +1,264 @@
+{
+  "user_agent": "OutreachTools/1.0",
+  "vault": "./data",
+  "sources": {
+    "comptroller_texas": {
+      "kind": "soda",
+      "url": "https://data.texas.gov/resource/jrea-zgmq.json",
+      "params": {
+        "$limit": "50000",
+        "$where": "outlet_naics_code >= 541100 AND outlet_naics_code < 541200 AND upper(outlet_state)='TX'",
+        "$order": "outlet_name"
+      },
+      "notes": "Texas Comptroller Active Sales Tax Permit Holders (jrea-zgmq). Statewide. Legal-services NAICS."
+    },
+    "tdlr": {
+      "kind": "soda",
+      "url": "https://data.texas.gov/resource/7358-krk7.json",
+      "params": {
+        "$limit": "50000",
+        "$where": "upper(license_type) is not null",
+        "$order": "business_name"
+      },
+      "notes": "TDLR All Licenses. Filter license_type in the parser. Statewide Texas."
+    },
+    "osm_lawyers": {
+      "kind": "overpass",
+      "url": "https://overpass-api.de/api/interpreter",
+      "data": "[out:json][timeout:180];area[\"ISO3166-2\"=\"US-TX\"]->.a;(node[\"office\"=\"lawyer\"](area.a);way[\"office\"=\"lawyer\"](area.a););out center tags;"
+    },
+    "justia_pi_texas": {
+      "kind": "html",
+      "url": "https://www.justia.com/lawyers/personal-injury/texas",
+      "parse": [
+        "jsonld_LegalService",
+        "ProfileWebsite",
+        "rel=me"
+      ],
+      "website_field_from": [
+        "ProfileWebsite",
+        "rel=me"
+      ]
+    },
+    "justia_pi_texas_p2": {
+      "kind": "html",
+      "url": "https://www.justia.com/lawyers/personal-injury/texas?page=2",
+      "parse": [
+        "jsonld_LegalService",
+        "ProfileWebsite",
+        "rel=me"
+      ]
+    },
+    "findlaw_pi_texas": {
+      "kind": "html",
+      "url": "https://lawyers.findlaw.com/lawyer/firm/personal-injury-plaintiff/houston/texas",
+      "parse": [
+        "Visit Website",
+        "website-button-link"
+      ],
+      "notes": "FindLaw city pages are metro-scoped. Houston is a Texas example; override --recipes for another city."
+    },
+    "fmcsa_census": {
+      "kind": "soda",
+      "url": "https://data.transportation.gov/resource/az4n-8mr2.json",
+      "params": {
+        "$limit": "50000",
+        "$where": "upper(phy_state)='TX' OR upper(mailing_state)='TX'",
+        "$order": "legal_name"
+      }
+    },
+    "osm_shops_bbox": {
+      "kind": "overpass",
+      "url": "https://overpass-api.de/api/interpreter",
+      "data": "[out:json][timeout:180];area[\"ISO3166-2\"=\"US-TX\"]->.a;(node[\"shop\"](area.a);node[\"craft\"~\"electrician|plumber|hvac\"](area.a);node[\"office\"~\"lawyer|accountant|estate_agent\"](area.a););out center tags;"
+    },
+    "comptroller_cpa_texas": {
+      "kind": "soda",
+      "url": "https://data.texas.gov/resource/jrea-zgmq.json",
+      "params": {
+        "$limit": "20000",
+        "$where": "outlet_naics_code in (541211,541213,541214) AND upper(outlet_state)='TX'",
+        "$order": "outlet_name"
+      }
+    },
+    "osm_accountants": {
+      "kind": "overpass",
+      "url": "https://overpass-api.de/api/interpreter",
+      "data": "[out:json][timeout:180];area[\"ISO3166-2\"=\"US-TX\"]->.a;(node[\"office\"=\"accountant\"](area.a);node[\"office\"=\"tax_advisor\"](area.a););out center tags;"
+    },
+    "osm_dentists": {
+      "kind": "overpass",
+      "url": "https://overpass-api.de/api/interpreter",
+      "data": "[out:json][timeout:180];area[\"ISO3166-2\"=\"US-TX\"]->.a;(node[\"amenity\"=\"dentist\"](area.a);way[\"amenity\"=\"dentist\"](area.a););out center tags;"
+    },
+    "tsbde_dentists": {
+      "kind": "csv",
+      "url": "https://ls.tsbde.texas.gov/lib/csv/Dentist.csv",
+      "notes": "TSBDE licensee CSV. Statewide Texas. May TLS-fail from some egress."
+    },
+    "osm_insurance": {
+      "kind": "overpass",
+      "url": "https://overpass-api.de/api/interpreter",
+      "data": "[out:json][timeout:180];area[\"ISO3166-2\"=\"US-TX\"]->.a;(node[\"office\"=\"insurance\"](area.a););out center tags;"
+    },
+    "comptroller_insurance_texas": {
+      "kind": "soda",
+      "url": "https://data.texas.gov/resource/jrea-zgmq.json",
+      "params": {
+        "$limit": "20000",
+        "$where": "outlet_naics_code >= 524200 AND outlet_naics_code < 524300 AND upper(outlet_state)='TX'",
+        "$order": "outlet_name"
+      }
+    },
+    "osm_real_estate": {
+      "kind": "overpass",
+      "url": "https://overpass-api.de/api/interpreter",
+      "data": "[out:json][timeout:180];area[\"ISO3166-2\"=\"US-TX\"]->.a;(node[\"office\"=\"estate_agent\"](area.a);node[\"office\"=\"realtor\"](area.a);way[\"office\"=\"estate_agent\"](area.a);way[\"office\"=\"realtor\"](area.a););out center tags;"
+    },
+    "trec_broker_companies_texas": {
+      "kind": "soda",
+      "url": "https://data.texas.gov/resource/s7ft-44qi.json",
+      "params": {
+        "$limit": "20000",
+        "$where": "upper(status)='ACTIVE' AND upper(license_type)='BROKER COMPANY'",
+        "$order": "full_name"
+      },
+      "parse": [
+        "trec"
+      ],
+      "notes": "TREC Broker Company licensees, statewide Texas. Phone/address often omitted (SB510)."
+    },
+    "comptroller_real_estate_texas": {
+      "kind": "soda",
+      "url": "https://data.texas.gov/resource/jrea-zgmq.json",
+      "params": {
+        "$limit": "20000",
+        "$where": "outlet_naics_code >= 531210 AND outlet_naics_code < 531300 AND upper(outlet_state)='TX'",
+        "$order": "outlet_name"
+      }
+    },
+    "osm_hvac": {
+      "kind": "overpass",
+      "url": "https://overpass-api.de/api/interpreter",
+      "data": "[out:json][timeout:180];area[\"ISO3166-2\"=\"US-TX\"]->.a;(node[\"craft\"=\"hvac\"](area.a);node[\"shop\"=\"hvac\"](area.a);way[\"craft\"=\"hvac\"](area.a););out center tags;"
+    },
+    "tdlr_ac_contractors_texas": {
+      "kind": "soda",
+      "url": "https://data.texas.gov/resource/7358-krk7.json",
+      "params": {
+        "$limit": "20000",
+        "$where": "upper(license_type)='A/C CONTRACTOR'",
+        "$order": "business_name"
+      },
+      "parse": [
+        "tdlr"
+      ]
+    },
+    "comptroller_hvac_texas": {
+      "kind": "soda",
+      "url": "https://data.texas.gov/resource/jrea-zgmq.json",
+      "params": {
+        "$limit": "20000",
+        "$where": "outlet_naics_code >= 238220 AND outlet_naics_code < 238230 AND upper(outlet_state)='TX'",
+        "$order": "outlet_name"
+      },
+      "notes": "NAICS 23822 plumbing/HVAC \u2014 filter HVAC-ish names in the parser."
+    },
+    "osm_roofing": {
+      "kind": "overpass",
+      "url": "https://overpass-api.de/api/interpreter",
+      "data": "[out:json][timeout:180];area[\"ISO3166-2\"=\"US-TX\"]->.a;(node[\"craft\"=\"roofer\"](area.a);node[\"craft\"=\"roofing\"](area.a);node[\"shop\"=\"roofing\"](area.a);way[\"craft\"=\"roofer\"](area.a););out center tags;"
+    },
+    "comptroller_roofing_texas": {
+      "kind": "soda",
+      "url": "https://data.texas.gov/resource/jrea-zgmq.json",
+      "params": {
+        "$limit": "20000",
+        "$where": "outlet_naics_code >= 238160 AND outlet_naics_code < 238170 AND upper(outlet_state)='TX'",
+        "$order": "outlet_name"
+      }
+    },
+    "osm_medical": {
+      "kind": "overpass",
+      "url": "https://overpass-api.de/api/interpreter",
+      "data": "[out:json][timeout:180];area[\"ISO3166-2\"=\"US-TX\"]->.a;(node[\"amenity\"=\"doctors\"](area.a);node[\"healthcare\"=\"doctor\"](area.a);node[\"healthcare\"=\"clinic\"](area.a);node[\"amenity\"=\"clinic\"](area.a);way[\"amenity\"=\"doctors\"](area.a);way[\"healthcare\"=\"clinic\"](area.a););out center tags;"
+    },
+    "nppes_orgs_texas": {
+      "kind": "nppes",
+      "url": "https://npiregistry.cms.hhs.gov/api/",
+      "params": {
+        "version": "2.1",
+        "state": "TX",
+        "enumeration_type": "NPI-2",
+        "limit": "200"
+      },
+      "notes": "NPPES org NPIs, Texas. Parser keeps medical taxonomies."
+    },
+    "osm_engineering": {
+      "kind": "overpass",
+      "url": "https://overpass-api.de/api/interpreter",
+      "data": "[out:json][timeout:180];area[\"ISO3166-2\"=\"US-TX\"]->.a;(node[\"office\"=\"engineer\"](area.a);node[\"office\"=\"architect\"](area.a);way[\"office\"=\"engineer\"](area.a);way[\"office\"=\"architect\"](area.a););out center tags;"
+    },
+    "comptroller_engineering_texas": {
+      "kind": "soda",
+      "url": "https://data.texas.gov/resource/jrea-zgmq.json",
+      "params": {
+        "$limit": "20000",
+        "$where": "outlet_naics_code >= 541310 AND outlet_naics_code < 541400 AND upper(outlet_state)='TX'",
+        "$order": "outlet_name"
+      }
+    },
+    "justia_family_texas": {
+      "kind": "html",
+      "url": "https://www.justia.com/lawyers/family-law/texas",
+      "parse": [
+        "jsonld_LegalService",
+        "ProfileWebsite",
+        "rel=me"
+      ],
+      "practice": "family"
+    },
+    "justia_family_texas_p2": {
+      "kind": "html",
+      "url": "https://www.justia.com/lawyers/family-law/texas?page=2",
+      "parse": [
+        "jsonld_LegalService",
+        "ProfileWebsite",
+        "rel=me"
+      ],
+      "practice": "family"
+    },
+    "justia_immigration_texas": {
+      "kind": "html",
+      "url": "https://www.justia.com/lawyers/immigration-law/texas",
+      "parse": [
+        "jsonld_LegalService",
+        "ProfileWebsite",
+        "rel=me"
+      ],
+      "practice": "immigration"
+    },
+    "tbpe_pe_roster": {
+      "kind": "zip_csv",
+      "url": "https://tbpedownloads.s3-us-west-2.amazonaws.com/roster_pe.zip",
+      "csv_member": "pe_roster.csv",
+      "notes": "TBPELS PE roster ZIP/CSV \u2014 no city/county columns (SB510)."
+    }
+  },
+  "website_blocklist_hosts": [
+    "avvo.com",
+    "bbb.org",
+    "facebook.com",
+    "findlaw.com",
+    "google.com",
+    "justia.com",
+    "lawyers.com",
+    "linkedin.com",
+    "maps.google.com",
+    "superpages.com",
+    "wikipedia.org",
+    "wixsite.com",
+    "yellowpages.com",
+    "yelp.com"
+  ]
+}

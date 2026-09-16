@@ -1,0 +1,1051 @@
+{
+  "version": 1,
+  "warning": "No secrets. Rehydrate cookies/csrf from the live session at replay time.",
+  "entry_count": 51,
+  "top_paths": [
+    {
+      "method": "GET",
+      "path": "/voyager/api/graphql",
+      "count": 27
+    },
+    {
+      "method": "GET",
+      "path": "/voyager/api/voyagerMessagingGraphQL/graphql",
+      "count": 4
+    },
+    {
+      "method": "GET",
+      "path": "/voyager/api/voyagerSegmentsDashChameleonConfig",
+      "count": 2
+    },
+    {
+      "method": "GET",
+      "path": "/voyager/api/voyagerIdentityDashNotificationCards",
+      "count": 2
+    },
+    {
+      "method": "GET",
+      "path": "/voyager/api/me",
+      "count": 2
+    },
+    {
+      "method": "GET",
+      "path": "/voyager/api/voyagerNotificationsDashBadgingItemCounts",
+      "count": 2
+    },
+    {
+      "method": "GET",
+      "path": "/voyager/api/premium/featureAccess",
+      "count": 2
+    },
+    {
+      "method": "POST",
+      "path": "/voyager/api/messaging/dash/presenceStatuses",
+      "count": 2
+    },
+    {
+      "method": "GET",
+      "path": "/voyager/api/voyagerOrganizationDashPageMailbox/",
+      "count": 2
+    },
+    {
+      "method": "GET",
+      "path": "/voyager/api/voyagerGlobalAlerts",
+      "count": 2
+    },
+    {
+      "method": "GET",
+      "path": "/voyager/api/voyagerMessagingDashConversationNudges",
+      "count": 2
+    },
+    {
+      "method": "GET",
+      "path": "/litms/allowlist/voyager-web-global",
+      "count": 2
+    }
+  ],
+  "candidates": [
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/graphql",
+      "query_keep": {
+        "includeWebMetadata": "true",
+        "variables": "()",
+        "queryId": "voyagerFeedDashGlobalNavs.a618d03c522276ae43e2ecc891d11cf2"
+      },
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-pem-metadata",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 70469,
+      "url_template": "https://www.linkedin.com/voyager/api/graphql"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/voyagerSegmentsDashChameleonConfig",
+      "query_keep": {},
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 68015,
+      "url_template": "https://www.linkedin.com/voyager/api/voyagerSegmentsDashChameleonConfig"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/voyagerIdentityDashNotificationCards",
+      "query_keep": {
+        "decorationId": "com.linkedin.voyager.dash.deco.identity.notifications.CardsCollectionWithInjectionsNoPills-24"
+      },
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-deco-include-micro-schema",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 36852,
+      "url_template": "https://www.linkedin.com/voyager/api/voyagerIdentityDashNotificationCards"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/graphql",
+      "query_keep": {
+        "includeWebMetadata": "true",
+        "queryId": "voyagerMessagingDashAwayStatusV2.ee0ba3add6f8a58c35df3e08daa87b11"
+      },
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 7338,
+      "url_template": "https://www.linkedin.com/voyager/api/graphql"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/graphql",
+      "query_keep": {
+        "includeWebMetadata": "true",
+        "queryId": "voyagerMessagingDashAffiliatedMailboxes.aef223806c4270935ab6bdebfda1695d"
+      },
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-pem-metadata",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 4093,
+      "url_template": "https://www.linkedin.com/voyager/api/graphql"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/graphql",
+      "query_keep": {
+        "includeWebMetadata": "true",
+        "variables": "(pageKey:messaging_realtime,slotId:onboarding)",
+        "queryId": "voyagerLegoDashPageContents.6e5607181411f5835938e105d18564e2"
+      },
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 3452,
+      "url_template": "https://www.linkedin.com/voyager/api/graphql"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/graphql",
+      "query_keep": {
+        "includeWebMetadata": "true",
+        "variables": "(pageKey:messaging_presence,slotId:onboarding)",
+        "queryId": "voyagerLegoDashPageContents.6e5607181411f5835938e105d18564e2"
+      },
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 2361,
+      "url_template": "https://www.linkedin.com/voyager/api/graphql"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/graphql",
+      "query_keep": {
+        "includeWebMetadata": "true",
+        "queryId": "voyagerFeedDashThirdPartyIdSyncs.e9d3044f7ad311ff359561b405629210"
+      },
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 2355,
+      "url_template": "https://www.linkedin.com/voyager/api/graphql"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/me",
+      "query_keep": {},
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 2044,
+      "url_template": "https://www.linkedin.com/voyager/api/me"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/graphql",
+      "query_keep": {
+        "includeWebMetadata": "true",
+        "variables": "(featureAccessTypes:List(CAN_ACCESS_RECRUITER_MAILBOX,CAN_ACCESS_HIRING_MANAGER_MAILBOX))",
+        "queryId": "voyagerPremiumDashFeatureAccess.c87b20dac35795f9920f2a8072fd7af5"
+      },
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 1800,
+      "url_template": "https://www.linkedin.com/voyager/api/graphql"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/graphql",
+      "query_keep": {
+        "includeWebMetadata": "true",
+        "variables": "(featureAccessTypes:List(CAN_ACCESS_SALES_NAV_BADGE,CAN_ACCESS_ADVERTISE_BADGE))",
+        "queryId": "voyagerPremiumDashFeatureAccess.c87b20dac35795f9920f2a8072fd7af5"
+      },
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 1773,
+      "url_template": "https://www.linkedin.com/voyager/api/graphql"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/graphql",
+      "query_keep": {
+        "includeWebMetadata": "true",
+        "variables": "(featureAccessTypes:List(CAN_ACCESS_AWAY_MESSAGES))",
+        "queryId": "voyagerPremiumDashFeatureAccess.c87b20dac35795f9920f2a8072fd7af5"
+      },
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 1455,
+      "url_template": "https://www.linkedin.com/voyager/api/graphql"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/graphql",
+      "query_keep": {
+        "includeWebMetadata": "true",
+        "variables": "()",
+        "queryId": "voyagerMessagingDashMessagingSettings.a555e413ad439d1d3f58ceef31ff0728"
+      },
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 1384,
+      "url_template": "https://www.linkedin.com/voyager/api/graphql"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/graphql",
+      "query_keep": {
+        "includeWebMetadata": "true",
+        "variables": "(memberIdentity:ACoAAG5A9cgBJ5FbIgHtmRE0iZrnDaSlDJBjqcY)",
+        "queryId": "voyagerIdentityDashProfiles.b5c27c04968c409fc0ed3546575b9b7a"
+      },
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 1335,
+      "url_template": "https://www.linkedin.com/voyager/api/graphql"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/graphql",
+      "query_keep": {
+        "includeWebMetadata": "true",
+        "variables": "()",
+        "queryId": "voyagerDashMySettings.8fdc6cac2e41f88f83e8d17dc78ac26c"
+      },
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 1329,
+      "url_template": "https://www.linkedin.com/voyager/api/graphql"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/voyagerMessagingGraphQL/graphql",
+      "query_keep": {
+        "queryId": "messengerMailboxCounts.fc528a5a81a76dff212a4a3d2d48e84b",
+        "variables": "(mailboxUrn:urn:li:fsd_profile:ACoAAG5A9cgBJ5FbIgHtmRE0iZrnDaSlDJBjqcY)"
+      },
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 1274,
+      "url_template": "https://www.linkedin.com/voyager/api/voyagerMessagingGraphQL/graphql"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/graphql",
+      "query_keep": {
+        "includeWebMetadata": "true",
+        "variables": "()",
+        "queryId": "voyagerJobsDashJobSeekerPreferences.53d4a0b454b82ce339abf8afc2c65190"
+      },
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 1078,
+      "url_template": "https://www.linkedin.com/voyager/api/graphql"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/graphql",
+      "query_keep": {
+        "queryId": "voyagerMessagingDashAffiliatedMailboxes.aef223806c4270935ab6bdebfda1695d"
+      },
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-pem-metadata",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 692,
+      "url_template": "https://www.linkedin.com/voyager/api/graphql"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/voyagerNotificationsDashBadgingItemCounts",
+      "query_keep": {},
+      "header_names": [
+        "accept",
+        "content-type",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 644,
+      "url_template": "https://www.linkedin.com/voyager/api/voyagerNotificationsDashBadgingItemCounts"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/voyagerMessagingGraphQL/graphql",
+      "query_keep": {
+        "queryId": "messengerConversations.0d5e6781bbee71c3e51c8843c6519f48",
+        "variables": "(mailboxUrn:urn:li:fsd_profile:ACoAAG5A9cgBJ5FbIgHtmRE0iZrnDaSlDJBjqcY)"
+      },
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 481,
+      "url_template": "https://www.linkedin.com/voyager/api/voyagerMessagingGraphQL/graphql"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/premium/featureAccess",
+      "query_keep": {},
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 322,
+      "url_template": "https://www.linkedin.com/voyager/api/premium/featureAccess"
+    },
+    {
+      "method": "POST",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/messaging/dash/presenceStatuses",
+      "query_keep": {},
+      "header_names": [
+        "accept",
+        "content-type",
+        "csrf-token",
+        "x-http-method-override",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 268,
+      "url_template": "https://www.linkedin.com/voyager/api/messaging/dash/presenceStatuses"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/voyagerOrganizationDashPageMailbox/",
+      "query_keep": {},
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 231,
+      "url_template": "https://www.linkedin.com/voyager/api/voyagerOrganizationDashPageMailbox/"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/voyagerGlobalAlerts",
+      "query_keep": {},
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 222,
+      "url_template": "https://www.linkedin.com/voyager/api/voyagerGlobalAlerts"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/voyagerMessagingDashConversationNudges",
+      "query_keep": {},
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 222,
+      "url_template": "https://www.linkedin.com/voyager/api/voyagerMessagingDashConversationNudges"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "platform.linkedin.com",
+      "path": "/litms/allowlist/voyager-web-global",
+      "query_keep": {},
+      "header_names": [],
+      "response_bytes": 107,
+      "url_template": "https://platform.linkedin.com/litms/allowlist/voyager-web-global"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "platform.linkedin.com",
+      "path": "/litms/allowlist/voyager-web-global",
+      "query_keep": {},
+      "header_names": [],
+      "response_bytes": 0,
+      "url_template": "https://platform.linkedin.com/litms/allowlist/voyager-web-global"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/graphql",
+      "query_keep": {
+        "includeWebMetadata": "true",
+        "variables": "()",
+        "queryId": "voyagerFeedDashGlobalNavs.a618d03c522276ae43e2ecc891d11cf2"
+      },
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-pem-metadata",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 0,
+      "url_template": "https://www.linkedin.com/voyager/api/graphql"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/graphql",
+      "query_keep": {
+        "includeWebMetadata": "true",
+        "variables": "(memberIdentity:ACoAAG5A9cgBJ5FbIgHtmRE0iZrnDaSlDJBjqcY)",
+        "queryId": "voyagerIdentityDashProfiles.b5c27c04968c409fc0ed3546575b9b7a"
+      },
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 0,
+      "url_template": "https://www.linkedin.com/voyager/api/graphql"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/graphql",
+      "query_keep": {
+        "includeWebMetadata": "true",
+        "queryId": "voyagerFeedDashThirdPartyIdSyncs.e9d3044f7ad311ff359561b405629210"
+      },
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 0,
+      "url_template": "https://www.linkedin.com/voyager/api/graphql"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/graphql",
+      "query_keep": {
+        "includeWebMetadata": "true",
+        "variables": "(featureAccessTypes:List(CAN_ACCESS_SALES_NAV_BADGE,CAN_ACCESS_ADVERTISE_BADGE))",
+        "queryId": "voyagerPremiumDashFeatureAccess.c87b20dac35795f9920f2a8072fd7af5"
+      },
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 0,
+      "url_template": "https://www.linkedin.com/voyager/api/graphql"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/graphql",
+      "query_keep": {
+        "includeWebMetadata": "true",
+        "variables": "()",
+        "queryId": "voyagerJobsDashJobSeekerPreferences.53d4a0b454b82ce339abf8afc2c65190"
+      },
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 0,
+      "url_template": "https://www.linkedin.com/voyager/api/graphql"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/graphql",
+      "query_keep": {
+        "includeWebMetadata": "true",
+        "variables": "()",
+        "queryId": "voyagerDashMySettings.8fdc6cac2e41f88f83e8d17dc78ac26c"
+      },
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 0,
+      "url_template": "https://www.linkedin.com/voyager/api/graphql"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/graphql",
+      "query_keep": {
+        "includeWebMetadata": "true",
+        "variables": "(pageKey:messaging_realtime,slotId:onboarding)",
+        "queryId": "voyagerLegoDashPageContents.6e5607181411f5835938e105d18564e2"
+      },
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 0,
+      "url_template": "https://www.linkedin.com/voyager/api/graphql"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/graphql",
+      "query_keep": {
+        "includeWebMetadata": "true",
+        "variables": "(featureAccessTypes:List(CAN_ACCESS_AWAY_MESSAGES))",
+        "queryId": "voyagerPremiumDashFeatureAccess.c87b20dac35795f9920f2a8072fd7af5"
+      },
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 0,
+      "url_template": "https://www.linkedin.com/voyager/api/graphql"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/graphql",
+      "query_keep": {
+        "includeWebMetadata": "true",
+        "variables": "(pageKey:messaging_presence,slotId:onboarding)",
+        "queryId": "voyagerLegoDashPageContents.6e5607181411f5835938e105d18564e2"
+      },
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 0,
+      "url_template": "https://www.linkedin.com/voyager/api/graphql"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/graphql",
+      "query_keep": {
+        "includeWebMetadata": "true",
+        "variables": "()",
+        "queryId": "voyagerMessagingDashMessagingSettings.a555e413ad439d1d3f58ceef31ff0728"
+      },
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 0,
+      "url_template": "https://www.linkedin.com/voyager/api/graphql"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/graphql",
+      "query_keep": {
+        "includeWebMetadata": "true",
+        "variables": "(featureAccessTypes:List(CAN_ACCESS_RECRUITER_MAILBOX,CAN_ACCESS_HIRING_MANAGER_MAILBOX))",
+        "queryId": "voyagerPremiumDashFeatureAccess.c87b20dac35795f9920f2a8072fd7af5"
+      },
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 0,
+      "url_template": "https://www.linkedin.com/voyager/api/graphql"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/graphql",
+      "query_keep": {
+        "includeWebMetadata": "true",
+        "queryId": "voyagerMessagingDashAwayStatusV2.ee0ba3add6f8a58c35df3e08daa87b11"
+      },
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 0,
+      "url_template": "https://www.linkedin.com/voyager/api/graphql"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/graphql",
+      "query_keep": {
+        "includeWebMetadata": "true",
+        "queryId": "voyagerMessagingDashAffiliatedMailboxes.aef223806c4270935ab6bdebfda1695d"
+      },
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-pem-metadata",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 0,
+      "url_template": "https://www.linkedin.com/voyager/api/graphql"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/me",
+      "query_keep": {},
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 0,
+      "url_template": "https://www.linkedin.com/voyager/api/me"
+    },
+    {
+      "method": "POST",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/messaging/dash/presenceStatuses",
+      "query_keep": {},
+      "header_names": [
+        "accept",
+        "content-type",
+        "csrf-token",
+        "x-http-method-override",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 0,
+      "url_template": "https://www.linkedin.com/voyager/api/messaging/dash/presenceStatuses"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/premium/featureAccess",
+      "query_keep": {},
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 0,
+      "url_template": "https://www.linkedin.com/voyager/api/premium/featureAccess"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/voyagerGlobalAlerts",
+      "query_keep": {},
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 0,
+      "url_template": "https://www.linkedin.com/voyager/api/voyagerGlobalAlerts"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/voyagerIdentityDashNotificationCards",
+      "query_keep": {
+        "decorationId": "com.linkedin.voyager.dash.deco.identity.notifications.CardsCollectionWithInjectionsNoPills-24"
+      },
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-deco-include-micro-schema",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 0,
+      "url_template": "https://www.linkedin.com/voyager/api/voyagerIdentityDashNotificationCards"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/voyagerMessagingDashConversationNudges",
+      "query_keep": {},
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 0,
+      "url_template": "https://www.linkedin.com/voyager/api/voyagerMessagingDashConversationNudges"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/voyagerMessagingGraphQL/graphql",
+      "query_keep": {
+        "queryId": "messengerConversations.0d5e6781bbee71c3e51c8843c6519f48",
+        "variables": "(mailboxUrn:urn:li:fsd_profile:ACoAAG5A9cgBJ5FbIgHtmRE0iZrnDaSlDJBjqcY)"
+      },
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 0,
+      "url_template": "https://www.linkedin.com/voyager/api/voyagerMessagingGraphQL/graphql"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/voyagerMessagingGraphQL/graphql",
+      "query_keep": {
+        "queryId": "messengerMailboxCounts.fc528a5a81a76dff212a4a3d2d48e84b",
+        "variables": "(mailboxUrn:urn:li:fsd_profile:ACoAAG5A9cgBJ5FbIgHtmRE0iZrnDaSlDJBjqcY)"
+      },
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 0,
+      "url_template": "https://www.linkedin.com/voyager/api/voyagerMessagingGraphQL/graphql"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/voyagerNotificationsDashBadgingItemCounts",
+      "query_keep": {},
+      "header_names": [
+        "accept",
+        "content-type",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 0,
+      "url_template": "https://www.linkedin.com/voyager/api/voyagerNotificationsDashBadgingItemCounts"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/voyagerOrganizationDashPageMailbox/",
+      "query_keep": {},
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 0,
+      "url_template": "https://www.linkedin.com/voyager/api/voyagerOrganizationDashPageMailbox/"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "host": "www.linkedin.com",
+      "path": "/voyager/api/voyagerSegmentsDashChameleonConfig",
+      "query_keep": {},
+      "header_names": [
+        "accept",
+        "csrf-token",
+        "x-li-lang",
+        "x-li-page-instance",
+        "x-li-track",
+        "x-restli-protocol-version"
+      ],
+      "response_bytes": 0,
+      "url_template": "https://www.linkedin.com/voyager/api/voyagerSegmentsDashChameleonConfig"
+    }
+  ]
+}

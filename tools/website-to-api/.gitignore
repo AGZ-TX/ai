@@ -1,0 +1,5 @@
+*.har
+*-capture/
+chrome-profile/
+recipe-draft.json
+posts.json

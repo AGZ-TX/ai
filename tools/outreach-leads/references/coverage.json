@@ -1,0 +1,217 @@
+{
+  "updated": "2026-09-15",
+  "vault": "./data",
+  "rows": [
+    {
+      "category": "Salon",
+      "specialty_required": false,
+      "min_notes": 50,
+      "min_site_fill": 0.1,
+      "specialty_mode": null,
+      "primary_dumps": [
+        "tdlr"
+      ],
+      "status": "strong"
+    },
+    {
+      "category": "Logistics",
+      "specialty_required": false,
+      "min_notes": 50,
+      "min_site_fill": 0.1,
+      "specialty_mode": null,
+      "primary_dumps": [
+        "fmcsa_census"
+      ],
+      "status": "strong"
+    },
+    {
+      "category": "Law",
+      "specialty_required": true,
+      "min_notes": 80,
+      "min_site_fill": 0.25,
+      "specialty_mode": "specialty-directory",
+      "practice_aliases": {
+        "pi": [
+          "personal-injury",
+          "trial"
+        ],
+        "personal-injury": [
+          "personal-injury",
+          "trial"
+        ],
+        "trial": [
+          "trial",
+          "personal-injury"
+        ],
+        "family": [
+          "family",
+          "family-law"
+        ],
+        "immigration": [
+          "immigration",
+          "immigration-law"
+        ]
+      },
+      "specialty_min_notes": 50,
+      "specialty_min_site_fill": 0.25,
+      "primary_dumps": [
+        "comptroller_texas",
+        "osm_lawyers"
+      ],
+      "specialty_recipes": [
+        "justia_pi_texas",
+        "justia_pi_texas_p2",
+        "findlaw_pi_texas",
+        "justia_family_texas",
+        "justia_family_texas_p2",
+        "justia_immigration_texas"
+      ],
+      "status": "specialty_required"
+    },
+    {
+      "category": "Church",
+      "specialty_required": false,
+      "min_notes": 20,
+      "min_site_fill": 0.1,
+      "specialty_mode": null,
+      "status": "medium"
+    },
+    {
+      "category": "Nonprofit",
+      "specialty_required": false,
+      "min_notes": 20,
+      "min_site_fill": 0.1,
+      "specialty_mode": null,
+      "status": "medium"
+    },
+    {
+      "category": "Medical",
+      "specialty_required": true,
+      "min_notes": 30,
+      "min_site_fill": 0.15,
+      "specialty_mode": "specialty-directory",
+      "status": "specialty_required",
+      "primary_dumps": [
+        "osm_medical"
+      ],
+      "specialty_recipes": [
+        "osm_medical",
+        "nppes_orgs_texas"
+      ]
+    },
+    {
+      "category": "Accounting",
+      "specialty_required": true,
+      "min_notes": 40,
+      "min_site_fill": 0.1,
+      "specialty_mode": "specialty-directory",
+      "primary_dumps": [
+        "comptroller_cpa_texas",
+        "osm_accountants"
+      ],
+      "specialty_recipes": [
+        "comptroller_cpa_texas",
+        "osm_accountants"
+      ],
+      "status": "specialty_required"
+    },
+    {
+      "category": "Dentist",
+      "specialty_required": true,
+      "min_notes": 40,
+      "min_site_fill": 0.1,
+      "specialty_mode": "specialty-directory",
+      "primary_dumps": [
+        "osm_dentists"
+      ],
+      "specialty_recipes": [
+        "osm_dentists",
+        "tsbde_dentists"
+      ],
+      "status": "specialty_required"
+    },
+    {
+      "category": "Insurance",
+      "specialty_required": true,
+      "min_notes": 25,
+      "min_site_fill": 0.1,
+      "specialty_mode": "specialty-directory",
+      "primary_dumps": [
+        "osm_insurance",
+        "comptroller_insurance_texas"
+      ],
+      "specialty_recipes": [
+        "osm_insurance",
+        "comptroller_insurance_texas"
+      ],
+      "status": "thin"
+    },
+    {
+      "category": "Real estate",
+      "specialty_required": true,
+      "min_notes": 20,
+      "min_site_fill": 0.1,
+      "specialty_mode": "specialty-directory",
+      "primary_dumps": [
+        "osm_real_estate",
+        "trec_broker_companies_texas"
+      ],
+      "specialty_recipes": [
+        "osm_real_estate",
+        "trec_broker_companies_texas",
+        "comptroller_real_estate_texas"
+      ],
+      "status": "specialty_required"
+    },
+    {
+      "category": "HVAC",
+      "specialty_required": true,
+      "min_notes": 25,
+      "min_site_fill": 0.1,
+      "specialty_mode": "specialty-directory",
+      "primary_dumps": [
+        "osm_hvac",
+        "tdlr_ac_contractors_texas"
+      ],
+      "specialty_recipes": [
+        "osm_hvac",
+        "tdlr_ac_contractors_texas",
+        "comptroller_hvac_texas"
+      ],
+      "status": "specialty_required"
+    },
+    {
+      "category": "Roofing",
+      "specialty_required": true,
+      "min_notes": 15,
+      "min_site_fill": 0.1,
+      "specialty_mode": "specialty-directory",
+      "primary_dumps": [
+        "osm_roofing",
+        "comptroller_roofing_texas"
+      ],
+      "specialty_recipes": [
+        "osm_roofing",
+        "comptroller_roofing_texas"
+      ],
+      "status": "thin"
+    },
+    {
+      "category": "Engineering",
+      "specialty_required": true,
+      "min_notes": 15,
+      "min_site_fill": 0.1,
+      "specialty_mode": "specialty-directory",
+      "primary_dumps": [
+        "osm_engineering",
+        "comptroller_engineering_texas"
+      ],
+      "specialty_recipes": [
+        "osm_engineering",
+        "comptroller_engineering_texas"
+      ],
+      "status": "thin",
+      "notes": "TBPELS PE roster ZIP has no city/county \u2014 OSM+Comptroller 5413xx"
+    }
+  ]
+}

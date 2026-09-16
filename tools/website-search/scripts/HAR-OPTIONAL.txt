@@ -1,0 +1,1 @@
+HAR capture is out of scope for website-search. Use website-to-api for HAR capture and an API recipe when a known UI path is token-expensive.

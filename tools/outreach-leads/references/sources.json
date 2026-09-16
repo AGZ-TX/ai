@@ -4,13 +4,13 @@
   "sources": {
     "comptroller_texas": {
       "kind": "soda",
-      "url": "https://data.texas.gov/resource/3gg6-9t7n.json",
+      "url": "https://data.texas.gov/resource/jrea-zgmq.json",
       "params": {
         "$limit": "50000",
         "$where": "outlet_naics_code >= 541100 AND outlet_naics_code < 541200 AND upper(outlet_state)='TX'",
         "$order": "outlet_name"
       },
-      "notes": "Texas Comptroller sales-tax outlets, legal services NAICS. Statewide example."
+      "notes": "Texas Comptroller Active Sales Tax Permit Holders (jrea-zgmq). Statewide. Legal-services NAICS."
     },
     "tdlr": {
       "kind": "soda",
@@ -74,7 +74,7 @@
     },
     "comptroller_cpa_texas": {
       "kind": "soda",
-      "url": "https://data.texas.gov/resource/3gg6-9t7n.json",
+      "url": "https://data.texas.gov/resource/jrea-zgmq.json",
       "params": {
         "$limit": "20000",
         "$where": "outlet_naics_code in (541211,541213,541214) AND upper(outlet_state)='TX'",
@@ -103,7 +103,7 @@
     },
     "comptroller_insurance_texas": {
       "kind": "soda",
-      "url": "https://data.texas.gov/resource/3gg6-9t7n.json",
+      "url": "https://data.texas.gov/resource/jrea-zgmq.json",
       "params": {
         "$limit": "20000",
         "$where": "outlet_naics_code >= 524200 AND outlet_naics_code < 524300 AND upper(outlet_state)='TX'",
@@ -130,7 +130,7 @@
     },
     "comptroller_real_estate_texas": {
       "kind": "soda",
-      "url": "https://data.texas.gov/resource/3gg6-9t7n.json",
+      "url": "https://data.texas.gov/resource/jrea-zgmq.json",
       "params": {
         "$limit": "20000",
         "$where": "outlet_naics_code >= 531210 AND outlet_naics_code < 531300 AND upper(outlet_state)='TX'",
@@ -156,7 +156,7 @@
     },
     "comptroller_hvac_texas": {
       "kind": "soda",
-      "url": "https://data.texas.gov/resource/3gg6-9t7n.json",
+      "url": "https://data.texas.gov/resource/jrea-zgmq.json",
       "params": {
         "$limit": "20000",
         "$where": "outlet_naics_code >= 238220 AND outlet_naics_code < 238230 AND upper(outlet_state)='TX'",
@@ -171,7 +171,7 @@
     },
     "comptroller_roofing_texas": {
       "kind": "soda",
-      "url": "https://data.texas.gov/resource/3gg6-9t7n.json",
+      "url": "https://data.texas.gov/resource/jrea-zgmq.json",
       "params": {
         "$limit": "20000",
         "$where": "outlet_naics_code >= 238160 AND outlet_naics_code < 238170 AND upper(outlet_state)='TX'",
@@ -201,7 +201,7 @@
     },
     "comptroller_engineering_texas": {
       "kind": "soda",
-      "url": "https://data.texas.gov/resource/3gg6-9t7n.json",
+      "url": "https://data.texas.gov/resource/jrea-zgmq.json",
       "params": {
         "$limit": "20000",
         "$where": "outlet_naics_code >= 541310 AND outlet_naics_code < 541400 AND upper(outlet_state)='TX'",

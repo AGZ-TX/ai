@@ -64,6 +64,16 @@ def cmd_doctor(args) -> int:
     if loaded is None:
         print("FAIL\tsources.json\tnot found")
         ok = False
+    else:
+        pack_blob = (PACK_ROOT / "references" / "sources.json").read_text() if (PACK_ROOT / "references" / "sources.json").exists() else ""
+        if "3gg6-9t7n" in pack_blob:
+            print("FAIL\tcomptroller\tmetro extract 3gg6-9t7n")
+            ok = False
+        elif "jrea-zgmq" not in pack_blob:
+            print("FAIL\tcomptroller\tmissing statewide jrea-zgmq")
+            ok = False
+        else:
+            print("OK\tcomptroller\tjrea-zgmq")
     cov = PACK_ROOT / "references" / "coverage.json"
     if cov.exists():
         try:

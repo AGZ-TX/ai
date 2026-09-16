@@ -7,7 +7,8 @@
       "url": "https://data.texas.gov/resource/3gg6-9t7n.json",
       "params": {
         "$limit": "50000",
-        "$where": "outlet_naics_code >= 541100 AND outlet_naics_code < 541200 AND upper(outlet_state)='TX'"
+        "$where": "outlet_naics_code >= 541100 AND outlet_naics_code < 541200 AND upper(outlet_state)='TX'",
+        "$order": "outlet_name"
       },
       "notes": "Texas Comptroller sales-tax outlets, legal services NAICS. Statewide example."
     },
@@ -16,7 +17,8 @@
       "url": "https://data.texas.gov/resource/7358-krk7.json",
       "params": {
         "$limit": "50000",
-        "$where": "upper(license_type) is not null"
+        "$where": "upper(license_type) is not null",
+        "$order": "business_name"
       },
       "notes": "TDLR All Licenses. Filter license_type in the parser. Statewide Texas."
     },
@@ -61,7 +63,8 @@
       "url": "https://data.transportation.gov/resource/az4n-8mr2.json",
       "params": {
         "$limit": "50000",
-        "$where": "upper(phy_state)='TX' OR upper(mailing_state)='TX'"
+        "$where": "upper(phy_state)='TX' OR upper(mailing_state)='TX'",
+        "$order": "legal_name"
       }
     },
     "osm_shops_bbox": {
@@ -74,7 +77,8 @@
       "url": "https://data.texas.gov/resource/3gg6-9t7n.json",
       "params": {
         "$limit": "20000",
-        "$where": "outlet_naics_code in (541211,541213,541214) AND upper(outlet_state)='TX'"
+        "$where": "outlet_naics_code in (541211,541213,541214) AND upper(outlet_state)='TX'",
+        "$order": "outlet_name"
       }
     },
     "osm_accountants": {
@@ -102,7 +106,8 @@
       "url": "https://data.texas.gov/resource/3gg6-9t7n.json",
       "params": {
         "$limit": "20000",
-        "$where": "outlet_naics_code >= 524200 AND outlet_naics_code < 524300 AND upper(outlet_state)='TX'"
+        "$where": "outlet_naics_code >= 524200 AND outlet_naics_code < 524300 AND upper(outlet_state)='TX'",
+        "$order": "outlet_name"
       }
     },
     "osm_real_estate": {
@@ -115,7 +120,8 @@
       "url": "https://data.texas.gov/resource/s7ft-44qi.json",
       "params": {
         "$limit": "20000",
-        "$where": "upper(status)='ACTIVE' AND upper(license_type)='BROKER COMPANY'"
+        "$where": "upper(status)='ACTIVE' AND upper(license_type)='BROKER COMPANY'",
+        "$order": "full_name"
       },
       "parse": [
         "trec"
@@ -127,7 +133,8 @@
       "url": "https://data.texas.gov/resource/3gg6-9t7n.json",
       "params": {
         "$limit": "20000",
-        "$where": "outlet_naics_code >= 531210 AND outlet_naics_code < 531300 AND upper(outlet_state)='TX'"
+        "$where": "outlet_naics_code >= 531210 AND outlet_naics_code < 531300 AND upper(outlet_state)='TX'",
+        "$order": "outlet_name"
       }
     },
     "osm_hvac": {
@@ -140,7 +147,8 @@
       "url": "https://data.texas.gov/resource/7358-krk7.json",
       "params": {
         "$limit": "20000",
-        "$where": "upper(license_type)='A/C CONTRACTOR'"
+        "$where": "upper(license_type)='A/C CONTRACTOR'",
+        "$order": "business_name"
       },
       "parse": [
         "tdlr"
@@ -151,7 +159,8 @@
       "url": "https://data.texas.gov/resource/3gg6-9t7n.json",
       "params": {
         "$limit": "20000",
-        "$where": "outlet_naics_code >= 238220 AND outlet_naics_code < 238230 AND upper(outlet_state)='TX'"
+        "$where": "outlet_naics_code >= 238220 AND outlet_naics_code < 238230 AND upper(outlet_state)='TX'",
+        "$order": "outlet_name"
       },
       "notes": "NAICS 23822 plumbing/HVAC \u2014 filter HVAC-ish names in the parser."
     },
@@ -165,7 +174,8 @@
       "url": "https://data.texas.gov/resource/3gg6-9t7n.json",
       "params": {
         "$limit": "20000",
-        "$where": "outlet_naics_code >= 238160 AND outlet_naics_code < 238170 AND upper(outlet_state)='TX'"
+        "$where": "outlet_naics_code >= 238160 AND outlet_naics_code < 238170 AND upper(outlet_state)='TX'",
+        "$order": "outlet_name"
       }
     },
     "osm_medical": {
@@ -194,7 +204,8 @@
       "url": "https://data.texas.gov/resource/3gg6-9t7n.json",
       "params": {
         "$limit": "20000",
-        "$where": "outlet_naics_code >= 541310 AND outlet_naics_code < 541400 AND upper(outlet_state)='TX'"
+        "$where": "outlet_naics_code >= 541310 AND outlet_naics_code < 541400 AND upper(outlet_state)='TX'",
+        "$order": "outlet_name"
       }
     },
     "justia_family_texas": {

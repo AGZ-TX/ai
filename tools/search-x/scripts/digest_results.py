@@ -105,7 +105,7 @@ def self_check() -> int:
             {"id": "3", "text": "one off line", "created_at": ""},
         ],
     }
-    tmp = Path("/tmp/search-x-profile-voice/posts.json")
+    tmp = Path("/tmp/search-x-digest/posts.json")
     tmp.parent.mkdir(parents=True, exist_ok=True)
     tmp.write_text(json.dumps(fixture), encoding="utf-8")
     out = write_digest(tmp, tmp.parent / "voice.md")

@@ -1894,8 +1894,12 @@ def self_check() -> int:
     skill_text = skill.read_text(encoding="utf-8")
     stack_text = stack.read_text(encoding="utf-8")
     rates_text = rates.read_text(encoding="utf-8")
-    if "name: search-x" not in skill_text:
+    if not re.search(r"(?m)^name:\s*search-x\s*$", skill_text):
         errors.append("SKILL.md missing frontmatter name")
+    if re.search(r"(?m)^name:\s*search-x-profiles?\s*$", skill_text):
+        errors.append("search-x must stay distinct from search-x-profile")
+    if "search-x-profile" not in skill_text:
+        errors.append("SKILL.md must point at search-x-profile")
     if "website-to-api" not in skill_text:
         errors.append("SKILL.md must point at website-to-api")
     if "Patchright" not in stack_text or "Camoufox" not in stack_text:

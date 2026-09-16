@@ -32,6 +32,8 @@ Preconditions:
 
 ## Gotchas
 
+- OSM Overpass recipes stay in `sources.json` (`osm_*`). Statewide Texas area queries are slow; pass `--recipes osm_accountants` when you want them.
+- Justia/FindLaw often 403 from datacenter egress. Comptroller / TREC / TDLR SODA are the bulk path.
 - Directory listing pages may lack ProfileWebsite; candidate websites often need profile fetch (`--fetch-profiles`) or enrich later.
 - National 800 numbers and chain names are skipped.
 - Never pass a Justia profile URL into `website:` frontmatter.

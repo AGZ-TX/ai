@@ -715,38 +715,29 @@ VERTICAL_RECIPES = {
     ],
     "accounting": [
         "comptroller_cpa_texas",
-        "osm_accountants",
     ],
     "dentist": [
-        "osm_dentists",
         "tsbde_dentists",
     ],
     "insurance": [
-        "osm_insurance",
         "comptroller_insurance_texas",
     ],
     "real-estate": [
-        "osm_real_estate",
         "trec_broker_companies_texas",
         "comptroller_real_estate_texas",
     ],
     "hvac": [
-        "osm_hvac",
         "tdlr_ac_contractors_texas",
         "comptroller_hvac_texas",
     ],
     "roofing": [
-        "osm_roofing",
         "comptroller_roofing_texas",
     ],
     "medical": [
-        "osm_medical",
         "nppes_orgs_texas",
     ],
     "engineering": [
-        "osm_engineering",
         "comptroller_engineering_texas",
-        # tbpe_pe_roster intentionally omitted — no city/county columns
     ],
     "family": [
         "justia_family_texas",

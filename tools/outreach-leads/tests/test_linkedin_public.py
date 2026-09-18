@@ -49,6 +49,10 @@ def job(jid="501", employer=COMPANY, host="www.linkedin.com", expired=False):
     {'No longer accepting applications' if expired else ''}</div></li>'''
 
 
+def job_detail():
+    return f'<section class="top-card-layout"><h1 class="top-card-layout__title">PI Paralegal</h1><a class="topcard__org-name-link" href="{COMPANY}">Example Law</a></section><section class="description"><div class="show-more-less-html__markup"><p>Full public description: prepare filings and review case records.</p></div></section>'
+
+
 class FakeHTTP:
     def __init__(self, *pages):
         self.pages = list(pages)
@@ -185,7 +189,7 @@ class FetchTests(unittest.TestCase):
         self.assertEqual(result["stop_reason"], "company_page_only")
 
     def test_complete_company_fetch(self):
-        client = FakeHTTP(company_page(), job())
+        client = FakeHTTP(company_page(), job(), job_detail())
         result = public.fetch_company({"slug": "example-law", "linkedin_company": COMPANY}, client, max_pages=1)
         self.assertEqual(result["source"], "linkedin_public")
         self.assertEqual(result["people"]["observed_count"], 1)
@@ -193,7 +197,7 @@ class FetchTests(unittest.TestCase):
         self.assertFalse(result["people"]["complete"])
 
     def test_discovery_and_jobs_only(self):
-        client = FakeHTTP(f'<a href="{COMPANY}">LinkedIn</a>', company_page(), job())
+        client = FakeHTTP(f'<a href="{COMPANY}">LinkedIn</a>', company_page(), job(), job_detail())
         result = public.fetch_company({"website": "https://example.test"}, client, jobs_only=True, max_pages=1)
         self.assertEqual(result["contacts"], [])
         self.assertEqual(result["people"]["status"], "skipped")
@@ -262,7 +266,7 @@ class VaultTests(unittest.TestCase):
         self.note.write_text(f'---\nname: "Example Law"\ncategory: "[[Law]]"\npractice: personal-injury\nwebsite: "https://example.test"\nlinkedin_company: "{COMPANY}"\nowner: ""\n---\n\n## Contacts\n- Manual Contact — manual@example.test\n\n## Call log\nKeep this unchanged.\n')
         self.profile = self.vault / "Research" / "firms" / "example-law.json"
         self.profile.parent.mkdir(parents=True)
-        self.result = public.fetch_company({"slug": self.note.stem, "path": str(self.note), "linkedin_company": COMPANY}, FakeHTTP(company_page(), job()), max_pages=1)
+        self.result = public.fetch_company({"slug": self.note.stem, "path": str(self.note), "linkedin_company": COMPANY}, FakeHTTP(company_page(), job(), job_detail()), max_pages=1)
         self.quiet = contextlib.redirect_stdout(io.StringIO())
         self.quiet.__enter__()
         self.addCleanup(self.quiet.__exit__, None, None, None)
@@ -284,6 +288,8 @@ class VaultTests(unittest.TestCase):
         profile = json.loads(self.profile.read_text())
         self.assertEqual(profile["hiring"]["status"], "hiring")
         self.assertEqual(profile["best_poc"]["name"], "Example Person")
+        self.assertIn("review case records.", profile["hiring"]["jobs"][0]["description"])
+        self.assertEqual(profile["hiring"]["jobs"][0]["job_url"], public.BASE + "/jobs/view/501/")
 
     def test_repeat_import_is_idempotent(self):
         self.import_row()
@@ -343,7 +349,7 @@ class VaultTests(unittest.TestCase):
         self.assertEqual(before, {str(p): p.read_bytes() for p in self.vault.rglob("*") if p.is_file()})
 
     def test_default_refreshes_hiring_even_with_existing_contacts(self):
-        fake = FakeHTTP(company_page(), job(), "")
+        fake = FakeHTTP(company_page(), job(), "", job_detail())
         with patch.object(contacts, "PublicHTTP", return_value=fake):
             self.assertEqual(contacts.run(["--vault", str(self.vault), "--no-push"]), 0)
         self.assertEqual(json.loads(self.profile.read_text())["hiring"]["status"], "hiring")
@@ -376,7 +382,7 @@ class VaultTests(unittest.TestCase):
             return 0, "", ""
         def scripts(root, name):
             return TOOLS / "outreach-leads" / "scripts" / name if name in {"linkedin_contacts.py", "build_poc.py"} else None
-        with patch.object(prep, "script_path", side_effect=scripts), patch.object(prep, "run_cmd", side_effect=fake_run), patch.object(contacts, "PublicHTTP", return_value=FakeHTTP(company_page(), job(), "")):
+        with patch.object(prep, "script_path", side_effect=scripts), patch.object(prep, "run_cmd", side_effect=fake_run), patch.object(contacts, "PublicHTTP", return_value=FakeHTTP(company_page(), job(), "", job_detail())):
             rc = prep.main(["--vault", str(self.vault), "--category", "Law", "--skip-specialty", "--skip-emails", "--no-push"])
         self.assertEqual(rc, 0)
         self.assertFalse(self.profile.with_name("other.json").exists())
@@ -385,6 +391,7 @@ class VaultTests(unittest.TestCase):
         self.assertIn("--no-push", li_command)
         profile = json.loads(self.profile.read_text())
         self.assertEqual(profile["linkedin"]["people"]["observed_count"], 1)
+        self.assertIn("review case records.", profile["hiring"]["jobs"][0]["description"])
         shortlist = next((self.vault / "Research" / "firms" / "shortlists").glob("law-*.json"))
         self.assertEqual(json.loads(shortlist.read_text())["firms"][0]["hiring"]["status"], "hiring")
 

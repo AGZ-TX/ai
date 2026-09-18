@@ -1,0 +1,21 @@
+name: Outreach regression tests
+on:
+  pull_request:
+    paths:
+      - 'tools/outreach-leads/**'
+      - 'tools/outreach-prep/**'
+      - '.github/workflows/outreach-tests.yml'
+permissions:
+  contents: read
+jobs:
+  offline-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Compile outreach modules
+        run: python3 -m compileall -q tools/outreach-leads/scripts tools/outreach-prep/scripts
+      - name: Offline LinkedIn and pipeline regression tests
+        run: python3 -m unittest discover -s tools/outreach-leads/tests -v

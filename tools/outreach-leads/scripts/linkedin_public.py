@@ -162,7 +162,9 @@ def linkedin_request_allowed(url: str) -> bool:
             return False
         if host not in {"www.linkedin.com", "linkedin.com"} and not re.fullmatch(r"[a-z]{2,3}\.linkedin\.com", host):
             return False
-        return bool(linkedin_url(url)) or u.path in {"/jobs/search", "/jobs/search/", "/jobs-guest/jobs/api/seeMoreJobPostings"}
+        return (bool(linkedin_url(url)) or bool(job_identity(url)[0])
+                or bool(re.fullmatch(r"/jobs-guest/jobs/api/jobPosting/[0-9]+/?", u.path))
+                or u.path in {"/jobs/search", "/jobs/search/", "/jobs-guest/jobs/api/seeMoreJobPostings"})
     except ValueError:
         return False
 
@@ -445,6 +447,8 @@ def fetch_company(row: dict, client=None, *, max_jobs: int = 50, max_pages: int 
                 out["company_id"] = info["company_id"]
                 out["hiring"], checks = fetch_hiring(client, company, info["company_id"], max_jobs=max_jobs, max_pages=max_pages)
                 out["checks"].extend(checks)
+                from linkedin_job_details import enrich_job_details
+                out["checks"].extend(enrich_job_details(out["hiring"], client, info["company_id"]))
     out["status"] = "linked" if reason in {"found", "not_public", "names_masked"} else reason
     out["people"] = {"status": "skipped" if jobs_only else reason, "observed_count": len(out["contacts"]), "coverage": "public_sample", "complete": False, "checked_at": out["checked_at"]}
     out.setdefault("hiring", {"status": "unknown", "is_hiring": None, "observed_job_count": 0, "jobs": [], "checked_at": out["checked_at"], "coverage": "public_listings", "complete": False, "stop_reason": reason, "source_urls": []})

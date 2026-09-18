@@ -2,6 +2,8 @@
 """Fetch public LinkedIn people and LinkedIn/Indeed hiring, or import legacy JSONL.
 
 Existing `enrich --layer contacts` now fetches and applies in one pass.
+Company profiles must clear company_identity.py before enrichment. Public imports
+without evidence are quarantined. See references/verification-map/company-identity.md.
 No authenticated LinkedIn session, API key, or third-party service is used.
 """
 from __future__ import annotations
@@ -20,6 +22,7 @@ from note_io import DEFAULT_VAULT, category_has, fm_get, iter_notes, practice_is
 from linkedin_public import MASKED, PublicHTTP, clean, fetch_company, linkedin_url, stamp
 from indeed_public import IndeedHTTP, company_url as indeed_company_url, fetch_company as fetch_indeed, job_identity as indeed_job_identity
 from hiring_sources import merge_hiring
+from company_identity import fetch_verified, guard_row, merge_identity
 
 OWNER_TITLE_RE = re.compile(r"\b(owner|founder|co-?founder|ceo|president|managing\s+partner|principal)\b", re.I)
 CONTACTS_HEADING = re.compile(r"^##[ \t]+Contacts[ \t]*$", re.M)
@@ -47,15 +50,31 @@ def matches_filters(text, category, practice, slug, path) -> bool:
 
 
 def note_row(path: Path, text: str) -> dict:
-    # Unlike the legacy fm_get regex, an empty field cannot consume the next line.
-    field = re.search(r"^linkedin_company:[ \t]*([^\n]*)$", text, re.M)
-    company = field[1].strip().strip('"').strip("'") if field else ""
+    # Identity inputs are local frontmatter, never values in imported job text.
+    parts = text.split("---", 2) if text.startswith("---") else []
+    front = parts[1] if len(parts) == 3 else ""
+    def field(key):
+        match = re.search(rf"^{re.escape(key)}:[ \t]*([^\n]*)$", front, re.M)
+        raw = match[1].strip() if match else ""
+        if raw.startswith('"'):
+            try:
+                value = json.loads(raw)
+                return value if isinstance(value, str) else ""
+            except ValueError:
+                return raw.strip('"')
+        return raw.strip("'")
+    company = field("linkedin_company")
     if not company:
         links = {linkedin_url(u) for u in re.findall(r'https?://[^\s<>"\)]+', text)} - {""}
         company = next(iter(links)) if len(links) == 1 else ""
-    field = re.search(r"^indeed_company:[ \t]*([^\n]*)$", text, re.M)
-    indeed = field[1].strip().strip('"').strip("'") if field else ""
-    return {"indeed_company": indeed, "slug": path.stem, "path": str(path.resolve()), "firm": fm_get(text, "name") or path.stem, "website": website_value(text), "city": re.sub(r'[\[\]"]', "", fm_get(text, "city")).strip(), "phone": fm_get(text, "phone"), "linkedin_company": company}
+    aliases = json.loads(field("company_aliases") or "[]")
+    if not isinstance(aliases, list) or not all(isinstance(a, str) for a in aliases):
+        raise ValueError("company_aliases must be a JSON array of explicit company names")
+    return {"indeed_company": field("indeed_company"), "linkedin_company": company,
+            "slug": path.stem, "path": str(path.resolve()), "firm": field("name") or path.stem,
+            "website": field("website"), "city": re.sub(r'[\[\]"]', "", field("city")),
+            "state": field("state"), "address": field("address"), "phone": field("phone"),
+            "legal_name": field("legal_name"), "company_aliases": aliases}
 
 
 def list_candidates(vault, *, category=None, practice=None, limit=0, slug=None, force=False) -> list[dict]:
@@ -183,6 +202,9 @@ def validate_row(row) -> None:
             raise ValueError(f"{key} must be a string")
     if row.get("linkedin_company") and not linkedin_url(row["linkedin_company"]):
         raise ValueError("invalid LinkedIn company URL")
+    for data in (row, row.get("indeed")):
+        if isinstance(data, dict) and "identity" in data and not isinstance(data["identity"], dict):
+            raise ValueError("identity must be an object")
     contacts = row.get("contacts") or []
     if not isinstance(contacts, list) or not all(isinstance(c, dict) for c in contacts):
         raise ValueError("contacts must be an array of objects")
@@ -232,6 +254,7 @@ def set_note_field(text: str, key: str, value: str) -> str:
 def apply_result_to_note(path: Path, row: dict, dry_run=False) -> dict:
     validate_row(row)
     text = path.read_text(encoding="utf-8")
+    row = guard_row(row, note_row(path, text))
     contacts = [_normalize_contact(c) for c in (row.get("contacts") or [])]
     contacts = [c for c in contacts if c.get("name") and c["name"].lower() not in MASKED]
     new = text
@@ -263,6 +286,19 @@ def apply_result_to_note(path: Path, row: dict, dry_run=False) -> dict:
             body.append("- " + " — ".join(clean(str(job.get(k) or "")) for k in ("title", "location", "pay_text", "url")))
         body.append(f"- Full descriptions and all collected jobs: Research/firms/{path.stem}.json (hiring_sources.indeed.jobs).")
         new = upsert_section(new, "Indeed public check", "\n".join(body))
+    if row.get("source") == "linkedin_public":
+        lines = []
+        for source, data in (("LinkedIn", row), ("Indeed", row.get("indeed"))):
+            if not isinstance(data, dict) or (source == "LinkedIn" and row.get("linkedin_skipped")):
+                continue
+            identity = data.get("identity") or {}
+            lines.append(f"- {source}: {identity.get('status', 'unverified')} — {identity.get('reason', '')}")
+            if identity.get("status") == "verified":
+                lines.append(f"- {source} company: {identity.get('company_url', '')}")
+            for evidence in identity.get("evidence", []):
+                lines.append(f"- Evidence: {evidence.get('source_url', '')} → {evidence.get('target_url', '')}")
+        lines.append("- Historical Contacts notes are retained, not re-certified. Current verified records and quarantined observations are in company_identity / hiring_sources in the firm JSON.")
+        new = upsert_section(new, "Company identity", "\n".join(lines))
     if new != text and not dry_run:
         atomic_text(path, new)
     return {"path": str(path), "slug": path.stem, "status": ("would_write" if dry_run else "wrote") if new != text else "unchanged", "contacts_n": len(contacts), "linkedin_company": company or None, "owner": owner or None}
@@ -282,13 +318,16 @@ def merge_public_profile(vault: Path, row: dict, *, dry_run=False) -> bool:
         raise ValueError("profile must be an object")
     before = json.dumps(profile, sort_keys=True)
     note_data = note_row(note, note.read_text(encoding="utf-8"))
+    validate_row(row)
+    row = guard_row(row, note_data)
+    merge_identity(profile, row, note_data)
     for key, value in (("slug", note.stem), ("name", note_data["firm"]), ("website", note_data["website"])):
         profile.setdefault(key, value)
     li = dict(profile.get("linkedin") or {})
     company = linkedin_url(row.get("linkedin_company") or "")
     if company:
         li["company_url"] = company
-    li.update(status=row.get("status", "unknown"), people=row.get("people", {}), checked_at=row.get("checked_at"), checks=row.get("checks", []), transport="public_html")
+    li.update(status=row.get("status", "unknown"), people=row.get("people", {}), checked_at=row.get("checked_at"), checks=row.get("checks", []), transport="public_html", identity=row.get("identity", {}))
     if row.get("company_id"):
         li["company_id"] = row["company_id"]
     if not row.get("linkedin_skipped"):
@@ -319,7 +358,7 @@ def merge_public_profile(vault: Path, row: dict, *, dry_run=False) -> bool:
     if row.get("indeed"):
         data = row["indeed"]
         prior_indeed = profile.get("indeed") or {}
-        profile["indeed"] = {key: data.get(key) for key in ("status", "company_url", "checked_at", "checks", "discovery")}
+        profile["indeed"] = {key: data.get(key) for key in ("status", "company_url", "checked_at", "checks", "discovery", "identity")}
         if not profile["indeed"].get("company_url"):
             profile["indeed"]["company_url"] = prior_indeed.get("company_url")
     changed = before != json.dumps(profile, sort_keys=True)
@@ -443,12 +482,12 @@ def run(argv=None) -> int:
         for row in rows:
             out = ({"schema_version": 2, "source": "linkedin_public", "slug": row["slug"], "path": row["path"],
                     "checked_at": stamp(), "linkedin_skipped": True, "contacts": []}
-                   if args.indeed_only else fetch_company(row, client, max_jobs=args.max_jobs, max_pages=args.job_pages, jobs_only=args.jobs_only))
+                   if args.indeed_only else fetch_verified(row, "linkedin", client, fetch_company, max_jobs=args.max_jobs, max_pages=args.job_pages, jobs_only=args.jobs_only))
             if not args.skip_indeed:
                 # Independent client and failure state: a LinkedIn refusal must
                 # never prevent an authorized public Indeed check (or vice versa).
-                out["indeed"] = fetch_indeed(row, indeed_client, max_jobs=args.max_jobs, max_pages=args.job_pages)
-            outputs.append(out)
+                out["indeed"] = fetch_verified(row, "indeed", indeed_client, fetch_indeed, max_jobs=args.max_jobs, max_pages=args.job_pages)
+            outputs.append(guard_row(out, row))
         atomic_text(results, "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in outputs))
         print(f"results\t{results}\trows={len(outputs)}")
         stats = apply_results(vault, results)

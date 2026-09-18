@@ -17,6 +17,7 @@ TOOLS = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(TOOLS / "outreach-leads" / "scripts"))
 import linkedin_public as public
 import linkedin_contacts as contacts
+from company_identity import fetch_verified
 from test_indeed_public import (COMPANY as INDEED_COMPANY, listing_page as indeed_listing,
                                 detail_page as indeed_detail, FakeHTTP as IndeedFake)
 
@@ -30,6 +31,7 @@ PERSON = public.BASE + "/in/example-person/"
 def company_page(name="Example Person", company=COMPANY, ids="101"):
     return f'''<html><head><title>Example Law | LinkedIn</title>
     <link rel="canonical" href="{company}"></head><body>
+    <h1>Example Law</h1><dl><dt>Website</dt><dd><a href="https://example.test">Website</a></dd></dl>
     <a href="/jobs/example-jobs-worldwide?f_C={ids}">See jobs</a>
     <section data-test-id="employees-at"><h2>Employees at Example Law</h2>
     <ul><li class="base-main-card"><a href="{PERSON}?trk=sample">
@@ -260,7 +262,7 @@ class TransportTests(unittest.TestCase):
 
 class VaultTests(unittest.TestCase):
     def setUp(self):
-        indeed_patch = patch.object(contacts, "IndeedHTTP", side_effect=lambda **_: IndeedFake(indeed_listing(), indeed_detail()))
+        indeed_patch = patch.object(contacts, "IndeedHTTP", side_effect=lambda **_: IndeedFake(company_page(company=INDEED_COMPANY), indeed_listing(), indeed_detail()))
         indeed_patch.start()
         self.addCleanup(indeed_patch.stop)
         self.tmp = tempfile.TemporaryDirectory()
@@ -271,7 +273,7 @@ class VaultTests(unittest.TestCase):
         self.note.write_text(f'---\nname: "Example Law"\ncategory: "[[Law]]"\npractice: personal-injury\nwebsite: "https://example.test"\nlinkedin_company: "{COMPANY}"\nindeed_company: "{INDEED_COMPANY}"\nowner: ""\n---\n\n## Contacts\n- Manual Contact — manual@example.test\n\n## Call log\nKeep this unchanged.\n')
         self.profile = self.vault / "Research" / "firms" / "example-law.json"
         self.profile.parent.mkdir(parents=True)
-        self.result = public.fetch_company({"slug": self.note.stem, "path": str(self.note), "linkedin_company": COMPANY}, FakeHTTP(company_page(), job(), job_detail()), max_pages=1)
+        self.result = fetch_verified(contacts.note_row(self.note, self.note.read_text()), "linkedin", FakeHTTP(company_page(), job(), job_detail()), public.fetch_company, max_pages=1)
         self.quiet = contextlib.redirect_stdout(io.StringIO())
         self.quiet.__enter__()
         self.addCleanup(self.quiet.__exit__, None, None, None)
@@ -311,7 +313,8 @@ class VaultTests(unittest.TestCase):
         row = public.fetch_company({"slug": self.note.stem, "linkedin_company": COMPANY}, FakeHTTP(public.Page("", "blocked")))
         self.import_row(row)
         profile = json.loads(self.profile.read_text())
-        self.assertEqual(profile["contacts"][0]["email"], "person@example.test")
+        self.assertEqual(profile["contacts"], [])
+        self.assertEqual(profile["company_identity"]["quarantine"]["previous_linkedin_contacts"][0]["email"], "person@example.test")
         self.assertEqual(profile["hiring"]["status"], "unknown")
         self.assertEqual(profile["linkedin_last_successful_hiring"]["status"], "hiring")
         self.assertIn("Example Person", self.note.read_text())

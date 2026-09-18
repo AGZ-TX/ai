@@ -17,6 +17,8 @@ TOOLS = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(TOOLS / "outreach-leads" / "scripts"))
 import linkedin_public as public
 import linkedin_contacts as contacts
+from test_indeed_public import (COMPANY as INDEED_COMPANY, listing_page as indeed_listing,
+                                detail_page as indeed_detail, FakeHTTP as IndeedFake)
 
 spec = importlib.util.spec_from_file_location("outreach_prep_test", TOOLS / "outreach-prep" / "scripts" / "run_outreach_prep.py")
 prep = importlib.util.module_from_spec(spec)
@@ -258,12 +260,15 @@ class TransportTests(unittest.TestCase):
 
 class VaultTests(unittest.TestCase):
     def setUp(self):
+        indeed_patch = patch.object(contacts, "IndeedHTTP", side_effect=lambda **_: IndeedFake(indeed_listing(), indeed_detail()))
+        indeed_patch.start()
+        self.addCleanup(indeed_patch.stop)
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.vault = Path(self.tmp.name)
         (self.vault / "Businesses").mkdir()
         self.note = self.vault / "Businesses" / "example-law.md"
-        self.note.write_text(f'---\nname: "Example Law"\ncategory: "[[Law]]"\npractice: personal-injury\nwebsite: "https://example.test"\nlinkedin_company: "{COMPANY}"\nowner: ""\n---\n\n## Contacts\n- Manual Contact — manual@example.test\n\n## Call log\nKeep this unchanged.\n')
+        self.note.write_text(f'---\nname: "Example Law"\ncategory: "[[Law]]"\npractice: personal-injury\nwebsite: "https://example.test"\nlinkedin_company: "{COMPANY}"\nindeed_company: "{INDEED_COMPANY}"\nowner: ""\n---\n\n## Contacts\n- Manual Contact — manual@example.test\n\n## Call log\nKeep this unchanged.\n')
         self.profile = self.vault / "Research" / "firms" / "example-law.json"
         self.profile.parent.mkdir(parents=True)
         self.result = public.fetch_company({"slug": self.note.stem, "path": str(self.note), "linkedin_company": COMPANY}, FakeHTTP(company_page(), job(), job_detail()), max_pages=1)
@@ -391,9 +396,45 @@ class VaultTests(unittest.TestCase):
         self.assertIn("--no-push", li_command)
         profile = json.loads(self.profile.read_text())
         self.assertEqual(profile["linkedin"]["people"]["observed_count"], 1)
+        self.assertIn("Full first paragraph.", profile["hiring_sources"]["indeed"]["jobs"][0]["description"])
+        self.assertEqual(profile["hiring_sources"]["indeed"]["jobs"][0]["base_salary"]["currency"], "USD")
+        self.assertEqual(profile["hiring"]["checked_sources"], ["linkedin", "indeed"])
         self.assertIn("review case records.", profile["hiring"]["jobs"][0]["description"])
         shortlist = next((self.vault / "Research" / "firms" / "shortlists").glob("law-*.json"))
         self.assertEqual(json.loads(shortlist.read_text())["firms"][0]["hiring"]["status"], "hiring")
+
+    def test_indeed_only_leaves_linkedin_untouched(self):
+        self.import_row()
+        prior = json.loads(self.profile.read_text())["linkedin"]
+        with patch.object(contacts, "PublicHTTP", side_effect=AssertionError("LinkedIn forbidden")):
+            self.assertEqual(contacts.run(["--vault", str(self.vault), "--indeed-only", "--no-push"]), 0)
+        profile = json.loads(self.profile.read_text())
+        self.assertEqual(profile["linkedin"], prior)
+        self.assertEqual(profile["hiring"]["checked_sources"], ["indeed"])
+        self.assertIn("Full first paragraph.", profile["hiring"]["jobs"][0]["description"])
+        self.assertIn("## Indeed public check", self.note.read_text())
+
+    def test_linkedin_refusal_does_not_prevent_indeed(self):
+        with patch.object(contacts, "PublicHTTP", return_value=FakeHTTP(public.Page("", "blocked"))):
+            self.assertEqual(contacts.run(["--vault", str(self.vault), "--no-push"]), 0)
+        profile = json.loads(self.profile.read_text())
+        self.assertEqual(profile["hiring_sources"]["linkedin"]["status"], "unknown")
+        self.assertTrue(profile["hiring_sources"]["indeed"]["is_hiring"])
+        self.assertTrue(profile["hiring"]["is_hiring"])
+
+    def test_skip_indeed_never_calls_indeed(self):
+        fake = FakeHTTP(company_page(), job(), "", job_detail())
+        with patch.object(contacts, "PublicHTTP", return_value=fake), patch.object(contacts, "IndeedHTTP", side_effect=AssertionError("Indeed forbidden")):
+            self.assertEqual(contacts.run(["--vault", str(self.vault), "--skip-indeed", "--no-push"]), 0)
+        self.assertEqual(json.loads(self.profile.read_text())["hiring"]["checked_sources"], ["linkedin"])
+
+    def test_malformed_indeed_import_is_rejected(self):
+        row = dict(self.result)
+        row["indeed"] = {"hiring": {"jobs": [{"job_id": "bad", "url": "https://evil.test"}]}}
+        before = self.note.read_bytes()
+        with contextlib.redirect_stderr(io.StringIO()):
+            self.assertGreater(self.import_row(row)["errors"], 0)
+        self.assertEqual(self.note.read_bytes(), before)
 
     def test_prep_dry_run_does_not_fetch_or_write(self):
         before = {str(p): p.read_bytes() for p in self.vault.rglob("*") if p.is_file()}

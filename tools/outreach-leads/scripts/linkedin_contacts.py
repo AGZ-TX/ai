@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fetch public LinkedIn people + hiring, or queue/apply legacy JSONL.
+"""Fetch public LinkedIn people and LinkedIn/Indeed hiring, or import legacy JSONL.
 
 Existing `enrich --layer contacts` now fetches and applies in one pass.
 No authenticated LinkedIn session, API key, or third-party service is used.
@@ -17,7 +17,9 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from note_io import DEFAULT_VAULT, category_has, fm_get, iter_notes, practice_is_pi, website_value
-from linkedin_public import MASKED, PublicHTTP, clean, fetch_company, linkedin_url
+from linkedin_public import MASKED, PublicHTTP, clean, fetch_company, linkedin_url, stamp
+from indeed_public import IndeedHTTP, company_url as indeed_company_url, fetch_company as fetch_indeed, job_identity as indeed_job_identity
+from hiring_sources import merge_hiring
 
 OWNER_TITLE_RE = re.compile(r"\b(owner|founder|co-?founder|ceo|president|managing\s+partner|principal)\b", re.I)
 CONTACTS_HEADING = re.compile(r"^##[ \t]+Contacts[ \t]*$", re.M)
@@ -51,7 +53,9 @@ def note_row(path: Path, text: str) -> dict:
     if not company:
         links = {linkedin_url(u) for u in re.findall(r'https?://[^\s<>"\)]+', text)} - {""}
         company = next(iter(links)) if len(links) == 1 else ""
-    return {"slug": path.stem, "path": str(path.resolve()), "firm": fm_get(text, "name") or path.stem, "website": website_value(text), "city": re.sub(r'[\[\]"]', "", fm_get(text, "city")).strip(), "phone": fm_get(text, "phone"), "linkedin_company": company}
+    field = re.search(r"^indeed_company:[ \t]*([^\n]*)$", text, re.M)
+    indeed = field[1].strip().strip('"').strip("'") if field else ""
+    return {"indeed_company": indeed, "slug": path.stem, "path": str(path.resolve()), "firm": fm_get(text, "name") or path.stem, "website": website_value(text), "city": re.sub(r'[\[\]"]', "", fm_get(text, "city")).strip(), "phone": fm_get(text, "phone"), "linkedin_company": company}
 
 
 def list_candidates(vault, *, category=None, practice=None, limit=0, slug=None, force=False) -> list[dict]:
@@ -64,12 +68,15 @@ def list_candidates(vault, *, category=None, practice=None, limit=0, slug=None, 
             continue
         row = note_row(path, text)
         # Reuse a known canonical company from the existing research profile.
-        if not row["linkedin_company"]:
+        if not row["linkedin_company"] or not row["indeed_company"]:
             profile_path = vault / "Research" / "firms" / f"{path.stem}.json"
             if profile_path.is_file() and not profile_path.is_symlink():
                 try:
                     profile = json.loads(profile_path.read_text(encoding="utf-8"))
-                    row["linkedin_company"] = (profile.get("linkedin") or {}).get("company_url") or ""
+                    if not row["linkedin_company"]:
+                        row["linkedin_company"] = (profile.get("linkedin") or {}).get("company_url") or ""
+                    if not row["indeed_company"]:
+                        row["indeed_company"] = (profile.get("indeed") or {}).get("company_url") or ""
                 except (ValueError, AttributeError):
                     pass
         rows.append(row)
@@ -187,6 +194,27 @@ def validate_row(row) -> None:
         if not isinstance(jobs, list) or not all(isinstance(j, dict) for j in jobs):
             raise ValueError("hiring.jobs must be an array of objects")
 
+    if "indeed" in row:
+        indeed = row["indeed"]
+        if not isinstance(indeed, dict) or not isinstance(indeed.get("hiring"), dict):
+            raise ValueError("indeed.hiring must be an object")
+        if indeed.get("slug") not in (None, "", row.get("slug")) or indeed.get("path") not in (None, "", row.get("path")):
+            raise ValueError("Indeed result identity differs from parent row")
+        if indeed.get("company_url") and not indeed_company_url(indeed["company_url"]):
+            raise ValueError("invalid Indeed company URL")
+        jobs = indeed["hiring"].get("jobs", [])
+        if not isinstance(jobs, list) or len(jobs) > 500:
+            raise ValueError("indeed.hiring.jobs must be an array of at most 500 jobs")
+        for job in jobs:
+            if not isinstance(job, dict) or not isinstance(job.get("url"), str):
+                raise ValueError("Indeed jobs require a URL")
+            key, _ = indeed_job_identity(job["url"])
+            if not key or key != job.get("job_id"):
+                raise ValueError("Indeed job identity is invalid")
+            for field in ("title", "description", "description_html", "pay_text"):
+                if job.get(field) is not None and not isinstance(job[field], str):
+                    raise ValueError(f"Indeed job {field} must be text")
+
 
 def set_note_field(text: str, key: str, value: str) -> str:
     """Quote data, not regex replacement syntax; only modify frontmatter."""
@@ -215,13 +243,26 @@ def apply_result_to_note(path: Path, row: dict, dry_run=False) -> dict:
         new = set_note_field(new, "owner", owner)
     if contacts:
         new = upsert_contacts_section(new, [_format_contact_bullet(c) for c in contacts])
-    if row.get("source") == "linkedin_public":
+    if row.get("source") == "linkedin_public" and not row.get("linkedin_skipped"):
         people = row.get("people") or {}
         hiring = row.get("hiring") or {}
         body = [f"- Checked: {row.get('checked_at', '')}", f"- People: {people.get('status', 'unknown')}; {len(contacts)} observed; public sample only.", f"- Hiring: {hiring.get('status', 'unknown')}; {hiring.get('observed_job_count', 0)} company-matched public listings.", f"- Coverage: partial. No listings does not establish that the company is not hiring.", f"- Stop reason: {hiring.get('stop_reason', '')}"]
         for job in (hiring.get("jobs") or [])[:50]:
             body.append("- " + clean(str(job.get("title", ""))) + " — " + clean(str(job.get("location", ""))) + " — " + clean(str(job.get("url", ""))))
         new = upsert_section(new, "LinkedIn public check", "\n".join(body))
+    if row.get("indeed"):
+        indeed = row["indeed"]
+        hiring = indeed["hiring"]
+        if indeed.get("company_url"):
+            new = set_note_field(new, "indeed_company", indeed_company_url(indeed["company_url"]))
+        body = [f"- Checked: {indeed.get('checked_at', '')}",
+                f"- Hiring: {hiring.get('status', 'unknown')}; {hiring.get('observed_job_count', 0)} public listings.",
+                f"- Stop reason: {hiring.get('stop_reason', '')}",
+                "- Coverage: partial; missing data is unknown, not evidence of no hiring."]
+        for job in hiring.get("jobs", [])[:50]:
+            body.append("- " + " — ".join(clean(str(job.get(k) or "")) for k in ("title", "location", "pay_text", "url")))
+        body.append(f"- Full descriptions and all collected jobs: Research/firms/{path.stem}.json (hiring_sources.indeed.jobs).")
+        new = upsert_section(new, "Indeed public check", "\n".join(body))
     if new != text and not dry_run:
         atomic_text(path, new)
     return {"path": str(path), "slug": path.stem, "status": ("would_write" if dry_run else "wrote") if new != text else "unchanged", "contacts_n": len(contacts), "linkedin_company": company or None, "owner": owner or None}
@@ -250,7 +291,8 @@ def merge_public_profile(vault: Path, row: dict, *, dry_run=False) -> bool:
     li.update(status=row.get("status", "unknown"), people=row.get("people", {}), checked_at=row.get("checked_at"), checks=row.get("checks", []), transport="public_html")
     if row.get("company_id"):
         li["company_id"] = row["company_id"]
-    profile["linkedin"] = li
+    if not row.get("linkedin_skipped"):
+        profile["linkedin"] = li
     existing = [dict(c) for c in profile.get("contacts", []) if isinstance(c, dict)]
     for raw in (row.get("contacts") or []):
         c = _normalize_contact(raw)
@@ -273,11 +315,13 @@ def merge_public_profile(vault: Path, row: dict, *, dry_run=False) -> bool:
         previous = profile.get("best_poc") or {}
         if previous.get("kind") != "person" or float(best.get("poc_score") or 0) >= float(previous.get("poc_score") or 0):
             profile["best_poc"] = dict(best)
-    if row.get("hiring"):
-        prior = profile.get("hiring") or {}
-        if row["hiring"].get("status") == "unknown" and prior.get("status") in {"hiring", "no_public_jobs_found"}:
-            profile["linkedin_last_successful_hiring"] = prior
-        profile["hiring"] = row["hiring"]
+    merge_hiring(profile, row)
+    if row.get("indeed"):
+        data = row["indeed"]
+        prior_indeed = profile.get("indeed") or {}
+        profile["indeed"] = {key: data.get(key) for key in ("status", "company_url", "checked_at", "checks", "discovery")}
+        if not profile["indeed"].get("company_url"):
+            profile["indeed"]["company_url"] = prior_indeed.get("company_url")
     changed = before != json.dumps(profile, sort_keys=True)
     if changed and not dry_run:
         atomic_text(path, json.dumps(profile, ensure_ascii=False, indent=2) + "\n")
@@ -339,6 +383,10 @@ def run(argv=None) -> int:
     ap.add_argument("--output", help="results JSONL; default Sources/runs/linkedin-results-DATE.jsonl")
     ap.add_argument("--company-url", help="explicit company URL, requires --slug")
     ap.add_argument("--jobs-only", action="store_true")
+    ap.add_argument("--indeed-company-url", help="known Indeed company URL; requires --slug")
+    providers = ap.add_mutually_exclusive_group()
+    providers.add_argument("--skip-indeed", action="store_true", help="LinkedIn only")
+    providers.add_argument("--indeed-only", action="store_true", help="Indeed hiring only; leave LinkedIn untouched")
     ap.add_argument("--max-jobs", type=int, default=50)
     ap.add_argument("--job-pages", type=int, default=3)
     ap.add_argument("--delay", type=float, default=2)
@@ -347,6 +395,10 @@ def run(argv=None) -> int:
         ap.error("limit >= 0; max-jobs 1..500; job-pages 1..20; delay 1..60")
     if args.company_url and (not args.slug or not linkedin_url(args.company_url)):
         ap.error("--company-url requires --slug and a valid public LinkedIn company URL")
+    if args.indeed_company_url and (not args.slug or not indeed_company_url(args.indeed_company_url)):
+        ap.error("--indeed-company-url requires --slug and a valid public Indeed company URL")
+    if args.indeed_only and args.company_url:
+        ap.error("--company-url is LinkedIn; use --indeed-company-url with --indeed-only")
     if args.queue_only and args.apply:
         ap.error("--queue-only cannot be combined with --apply")
     vault = Path(args.vault).expanduser().resolve()
@@ -374,6 +426,9 @@ def run(argv=None) -> int:
             rows = [row for row in rows if row["slug"] == args.slug.removesuffix(".md")]
             for row in rows:
                 row["linkedin_company"] = linkedin_url(args.company_url)
+        if args.indeed_company_url:
+            for row in rows:
+                row["indeed_company"] = indeed_company_url(args.indeed_company_url)
         if args.slug and not rows:
             ap.error("no exact matching note found")
         if args.dry_run or args.queue_only:
@@ -382,8 +437,18 @@ def run(argv=None) -> int:
             return 0
         write_queue(vault, rows)
         results = Path(args.output) if args.output else vault / "Sources" / "runs" / f"linkedin-results-{vault_day()}.jsonl"
-        client = PublicHTTP(delay=args.delay)
-        outputs = [fetch_company(row, client, max_jobs=args.max_jobs, max_pages=args.job_pages, jobs_only=args.jobs_only) for row in rows]
+        client = None if args.indeed_only else PublicHTTP(delay=args.delay)
+        indeed_client = None if args.skip_indeed else IndeedHTTP(delay=args.delay)
+        outputs = []
+        for row in rows:
+            out = ({"schema_version": 2, "source": "linkedin_public", "slug": row["slug"], "path": row["path"],
+                    "checked_at": stamp(), "linkedin_skipped": True, "contacts": []}
+                   if args.indeed_only else fetch_company(row, client, max_jobs=args.max_jobs, max_pages=args.job_pages, jobs_only=args.jobs_only))
+            if not args.skip_indeed:
+                # Independent client and failure state: a LinkedIn refusal must
+                # never prevent an authorized public Indeed check (or vice versa).
+                out["indeed"] = fetch_indeed(row, indeed_client, max_jobs=args.max_jobs, max_pages=args.job_pages)
+            outputs.append(out)
         atomic_text(results, "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in outputs))
         print(f"results\t{results}\trows={len(outputs)}")
         stats = apply_results(vault, results)

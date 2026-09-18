@@ -39,14 +39,21 @@ multiple company identities for that name are ambiguous, not verified hiring.
 A saved/company-linked identity takes precedence over a matching employer name.
 
 Fetch `/cmp/<company>/jobs?clearPrefilter=1` to request the public "See all jobs"
-view rather than the company's default local filter. Follow only exposed Next
-links that keep the same host, employer path and search/location filters. Parse
-HTML cards, JobPosting JSON-LD, and valid JSON already embedded in public HTML.
-Never execute page JavaScript, replay private RPCs or use guessed pagination APIs.
+view rather than the company's default local filter. Real company slugs may carry
+punctuation such as the comma in `Flores-Mendez,-P.c.`; preserve the supplied
+public slug and never guess one from a firm name. Follow only exposed Next links
+that keep the same host, employer path and search/location filters. Parse HTML
+cards, JobPosting JSON-LD, and valid JSON already embedded in public HTML.
+Public search pages use `/q-...-jobs.html?vjk=<job-key>`; `vjk` is accepted only on
+that search-page shape. Never execute page JavaScript, replay private RPCs from
+the anonymous client, or use guessed pagination APIs. The separate
+`website-to-api` recipe records the observed browser-session RPC as a replay
+candidate without storing cookies or API-key values.
 
-Canonical details are `/viewjob?jk=<16-hex-job-key>`. Tracking/card URLs are
-normalized to that read-only route. No tracking redirect, application submission,
-external application-site fetch or hidden API is performed. Redirects are checked;
+Canonical internal identities remain `/viewjob?jk=<16-hex-job-key>`. Public search
+URLs with `vjk=<16-hex-job-key>` normalize to the same identity. Tracking/card URLs
+are normalized to that read-only route. No tracking redirect, application
+submission, external application-site fetch or hidden API is performed. Redirects are checked;
 local/private destinations, deceptive hosts, credentials and nonstandard ports
 are rejected. US/Canada/UK/Australia/Ireland/New Zealand Indeed hosts are allowed;
 this is not a promise of worldwide coverage or localized parser completeness.

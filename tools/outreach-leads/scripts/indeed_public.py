@@ -23,6 +23,7 @@ BASE = "https://www.indeed.com"
 HOSTS = {"indeed.com", "www.indeed.com", "ca.indeed.com", "uk.indeed.com", "au.indeed.com", "ie.indeed.com", "nz.indeed.com"}
 STOP = {"blocked", "rate_limited"}
 KEY = re.compile(r"[0-9a-f]{16}")
+SEARCH_PATH = re.compile(r"/q-[^/]+-jobs\.html", re.IGNORECASE)
 
 
 def normalized_name(value: str) -> str:
@@ -47,10 +48,19 @@ def company_url(value: str, base: str = BASE) -> str:
     if not url:
         return ""
     u = urlsplit(url)
-    match = re.fullmatch(r"/cmp/([\w.-]+)(?:/jobs)?/?", unquote(u.path))
+    match = re.fullmatch(r"/cmp/([\w.,&'()\-]+)(?:/jobs)?/?", unquote(u.path))
     if not match or match[1] in {".", ".."}:
         return ""
-    return f"{u.scheme}://{u.netloc}/cmp/{quote(match[1].casefold(), safe='-._')}"
+    safe_slug_chars = "-._,&'()"
+    return f"{u.scheme}://{u.netloc}/cmp/{quote(match[1].casefold(), safe=safe_slug_chars)}"
+
+
+def search_url(value: str, base: str = BASE) -> str:
+    """Return a public Indeed keyword/location search URL without guessing its filters."""
+    url = public_url(value, base)
+    if not url or not SEARCH_PATH.fullmatch(unquote(urlsplit(url).path)):
+        return ""
+    return url
 
 
 def job_identity(value: str, base: str = BASE) -> tuple[str, str]:
@@ -58,10 +68,11 @@ def job_identity(value: str, base: str = BASE) -> tuple[str, str]:
     if not url:
         return "", ""
     u = urlsplit(url)
-    if u.path not in {"/viewjob", "/rc/clk", "/pagead/clk"} and not company_url(url):
+    search = bool(search_url(url))
+    if u.path not in {"/viewjob", "/rc/clk", "/pagead/clk"} and not company_url(url) and not search:
         return "", ""
     query = parse_qs(u.query)
-    keys = query.get("jk", [])
+    keys = query.get("vjk", []) if search else query.get("jk", [])
     if len(keys) != 1 or not KEY.fullmatch(keys[0]):
         return "", ""
     return keys[0], f"{u.scheme}://{u.netloc}/viewjob?jk={keys[0]}"
@@ -72,6 +83,8 @@ def request_allowed(value: str) -> bool:
     if not url:
         return False
     u = urlsplit(url)
+    if search_url(url):
+        return True
     if u.path == "/viewjob":
         return bool(job_identity(url)[0])
     return bool(company_url(url)) or u.path == "/jobs"

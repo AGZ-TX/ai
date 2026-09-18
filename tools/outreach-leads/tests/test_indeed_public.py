@@ -17,9 +17,11 @@ import indeed_public as indeed
 from hiring_sources import merge_hiring
 
 COMPANY = indeed.BASE + "/cmp/example-law"
+FLORES_COMPANY = indeed.BASE + "/cmp/Flores-Mendez,-P.c."
 JID = "0123456789abcdef"
 JID2 = "fedcba9876543210"
 URL = indeed.BASE + "/viewjob?jk=" + JID
+SEARCH_URL = indeed.BASE + "/q-paralegal-l-el-paso,-tx-jobs.html?vjk=" + JID
 
 
 def listing_card(jid=JID, company=COMPANY, name="Example Law", title="Paralegal"):
@@ -76,6 +78,14 @@ class IdentityTests(unittest.TestCase):
     def test_company_canonicalization(self):
         self.assertEqual(indeed.company_url("https://www.indeed.com/cmp/Example-Law/jobs?clearPrefilter=1"), COMPANY)
 
+    def test_public_company_slug_with_comma(self):
+        self.assertEqual(indeed.company_url("https://www.indeed.com/cmp/Flores-Mendez,-P.c./jobs"), FLORES_COMPANY.lower())
+
+    def test_public_search_url_and_vjk_identity(self):
+        self.assertEqual(indeed.search_url(SEARCH_URL), SEARCH_URL)
+        self.assertEqual(indeed.job_identity(SEARCH_URL), (JID, URL))
+        self.assertTrue(indeed.request_allowed(SEARCH_URL))
+
     def test_regional_domain_preserved(self):
         self.assertEqual(indeed.company_url("https://ca.indeed.com/cmp/Example-Law"), "https://ca.indeed.com/cmp/example-law")
 
@@ -91,6 +101,10 @@ class IdentityTests(unittest.TestCase):
     def test_duplicate_or_invalid_jk_rejected(self):
         for query in ("jk=" + JID + "&jk=" + JID2, "jk=bad", "vjk=" + JID):
             self.assertEqual(indeed.job_identity('/viewjob?' + query), ("", ""))
+
+    def test_search_path_requires_valid_vjk(self):
+        self.assertEqual(indeed.job_identity(indeed.BASE + "/q-paralegal-l-el-paso,-tx-jobs.html"), ("", ""))
+        self.assertEqual(indeed.job_identity(indeed.BASE + "/q-paralegal-l-el-paso,-tx-jobs.html?vjk=bad"), ("", ""))
 
     def test_discovery_requires_unique_official_link(self):
         self.assertEqual(indeed.discover_company(f'<a href="{COMPANY}">Indeed</a>', "https://example.test"), COMPANY)

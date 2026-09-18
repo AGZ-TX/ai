@@ -1,360 +1,397 @@
 #!/usr/bin/env python3
-"""LinkedIn contacts enrich layer: queue vault notes for browser lookup; apply structured results.
+"""Fetch public LinkedIn people + hiring, or queue/apply legacy JSONL.
 
-Does NOT drive a browser. Coordinator/computerUse fills linkedin-results JSONL; this script
-writes ## Contacts + optional linkedin_company:/owner: onto notes. Never writes linkedin.com
-into website:.
+Existing `enrich --layer contacts` now fetches and applies in one pass.
+No authenticated LinkedIn session, API key, or third-party service is used.
 """
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from note_io import (
-    DEFAULT_VAULT,
-    category_has,
-    fm_get,
-    iter_notes,
-    practice_is_pi,
-    set_fm,
-    website_value,
-)
+from note_io import DEFAULT_VAULT, category_has, fm_get, iter_notes, practice_is_pi, website_value
+from linkedin_public import MASKED, PublicHTTP, clean, fetch_company, linkedin_url
 
-OWNER_TITLE_RE = re.compile(
-    r"\b(owner|founder|co-?founder|ceo|president|managing\s+partner|principal)\b",
-    re.I,
-)
-CONTACTS_HEADING = re.compile(r"^##\s+Contacts\s*$", re.M)
+OWNER_TITLE_RE = re.compile(r"\b(owner|founder|co-?founder|ceo|president|managing\s+partner|principal)\b", re.I)
+CONTACTS_HEADING = re.compile(r"^##[ \t]+Contacts[ \t]*$", re.M)
 
 
 def vault_day() -> str:
-    return datetime.now(ZoneInfo("America/Chicago")).strftime("%Y-%m-%d")
+    return datetime.now(ZoneInfo(os.environ.get("VAULT_TZ", "America/Chicago"))).strftime("%Y-%m-%d")
 
 
 def has_contacts_section(text: str) -> bool:
-    """True when ## Contacts exists and has at least one non-empty bullet (not a bare stub)."""
-    m = CONTACTS_HEADING.search(text)
-    if not m:
-        return False
-    rest = text[m.end() :]
-    next_h = re.search(r"^##\s+", rest, re.M)
-    body = rest[: next_h.start()] if next_h else rest
-    for line in body.splitlines():
-        s = line.strip()
-        if s.startswith("-") and len(s) > 1:
-            return True
-    return False
+    m = re.search(r"^##[ \t]+Contacts[ \t]*\n(.*?)(?=^##[ \t]|\Z)", text, re.M | re.S)
+    return bool(m and any(line.strip().startswith("- ") for line in m[1].splitlines()))
 
 
-def matches_filters(
-    text: str,
-    category: str | None,
-    practice: str | None,
-    slug: str | None,
-    path: Path,
-) -> bool:
-    if slug:
-        stem = path.stem.lower()
-        s = slug.lower().removesuffix(".md")
-        if stem != s and s not in stem:
-            return False
+def matches_filters(text, category, practice, slug, path) -> bool:
+    if slug and path.stem != slug.removesuffix(".md"):
+        return False  # Exact identity: never update a different similarly named firm.
     if category and not category_has(text, category):
         return False
     if practice:
-        pl = practice.lower()
-        if pl in {"pi", "personal-injury", "trial"}:
-            if not practice_is_pi(text):
-                return False
-        elif pl not in fm_get(text, "practice").lower():
-            return False
+        if practice.lower() in {"pi", "personal-injury", "trial"}:
+            return practice_is_pi(text)
+        return practice.lower() in fm_get(text, "practice").lower()
     return True
 
 
 def note_row(path: Path, text: str) -> dict:
-    city = re.sub(r"[\[\]\"]", "", fm_get(text, "city")).strip()
-    return {
-        "slug": path.stem,
-        "path": str(path),
-        "firm": fm_get(text, "name") or path.stem,
-        "website": website_value(text),
-        "city": city,
-        "phone": fm_get(text, "phone"),
-    }
+    # Unlike the legacy fm_get regex, an empty field cannot consume the next line.
+    field = re.search(r"^linkedin_company:[ \t]*([^\n]*)$", text, re.M)
+    company = field[1].strip().strip('"').strip("'") if field else ""
+    if not company:
+        links = {linkedin_url(u) for u in re.findall(r'https?://[^\s<>"\)]+', text)} - {""}
+        company = next(iter(links)) if len(links) == 1 else ""
+    return {"slug": path.stem, "path": str(path.resolve()), "firm": fm_get(text, "name") or path.stem, "website": website_value(text), "city": re.sub(r'[\[\]"]', "", fm_get(text, "city")).strip(), "phone": fm_get(text, "phone"), "linkedin_company": company}
 
 
-def list_candidates(
-    vault: Path,
-    *,
-    category: str | None,
-    practice: str | None,
-    limit: int,
-    slug: str | None,
-    force: bool,
-) -> list[dict]:
-    rows: list[dict] = []
-    for p in iter_notes(vault):
-        text = p.read_text(encoding="utf-8", errors="replace")
-        if not matches_filters(text, category, practice, slug, p):
+def list_candidates(vault, *, category=None, practice=None, limit=0, slug=None, force=False) -> list[dict]:
+    rows = []
+    for path in iter_notes(vault):
+        if not path.resolve().is_relative_to((vault / "Businesses").resolve()) or path.is_symlink():
             continue
-        if not force and has_contacts_section(text):
+        text = path.read_text(encoding="utf-8")
+        if not matches_filters(text, category, practice, slug, path) or (not force and has_contacts_section(text)):
             continue
-        rows.append(note_row(p, text))
+        row = note_row(path, text)
+        # Reuse a known canonical company from the existing research profile.
+        if not row["linkedin_company"]:
+            profile_path = vault / "Research" / "firms" / f"{path.stem}.json"
+            if profile_path.is_file() and not profile_path.is_symlink():
+                try:
+                    profile = json.loads(profile_path.read_text(encoding="utf-8"))
+                    row["linkedin_company"] = (profile.get("linkedin") or {}).get("company_url") or ""
+                except (ValueError, AttributeError):
+                    pass
+        rows.append(row)
         if limit and len(rows) >= limit:
             break
     return rows
 
 
-def write_queue(vault: Path, rows: list[dict], dry_run: bool = False) -> Path | None:
-    day = vault_day()
-    runs = vault / "Sources" / "runs"
-    out = runs / f"linkedin-queue-{day}.jsonl"
+def atomic_text(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    name = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent, delete=False) as f:
+            name = f.name
+            f.write(text)
+        os.replace(name, path)
+    finally:
+        if name and os.path.exists(name):
+            os.unlink(name)
+
+
+def write_queue(vault, rows, dry_run=False):
+    path = vault / "Sources" / "runs" / f"linkedin-queue-{vault_day()}.jsonl"
+    for row in rows:
+        print(json.dumps(row, ensure_ascii=False))
     if dry_run:
-        for r in rows:
-            print(json.dumps(r, ensure_ascii=False))
-        print(f"dry-run queue rows: {len(rows)} (would write {out})")
+        print(f"dry-run queue rows: {len(rows)} (would write {path})")
         return None
-    runs.mkdir(parents=True, exist_ok=True)
-    with out.open("w", encoding="utf-8") as f:
-        for r in rows:
-            f.write(json.dumps(r, ensure_ascii=False) + "\n")
-            print(json.dumps(r, ensure_ascii=False))
-    print(f"queue\t{out}\trows={len(rows)}")
-    return out
+    atomic_text(path, "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows))
+    print(f"queue\t{path}\trows={len(rows)}")
+    return path
 
 
 def _normalize_contact(c: dict) -> dict:
-    """Normalize contact dict to {name, title, email, location, photo_url, profile_url}.
-
-    Aliases: pfp → photo_url; url → profile_url. Never invent emails.
-    """
     if not isinstance(c, dict):
         return {}
-    photo = (c.get("photo_url") or c.get("pfp") or "").strip()
-    profile = (c.get("profile_url") or c.get("url") or "").strip()
-    return {
-        "name": (c.get("name") or "").strip(),
-        "title": (c.get("title") or "").strip(),
-        "email": (c.get("email") or "").strip(),
-        "location": (c.get("location") or "").strip(),
-        "photo_url": photo,
-        "profile_url": profile,
-    }
+    def value(key, alias=""):
+        raw = c.get(key) or c.get(alias) or ""
+        return clean(raw) if isinstance(raw, str) else ""
+    return {"name": value("name"), "title": value("title"), "email": value("email"), "location": value("location"), "photo_url": value("photo_url", "pfp"), "profile_url": value("profile_url", "url")}
 
 
 def _format_contact_bullet(c: dict) -> str:
-    """Bullet: - Name — Title — location — email — photo_url — profile_url
-
-    Omit empty fields (incl. trailing) cleanly — no dangling em-dashes.
-    """
     n = _normalize_contact(c)
-    name = n["name"] or "?"
-    # Fixed order; skip empties so bullets stay readable
-    parts = [name]
-    for key in ("title", "location", "email", "photo_url", "profile_url"):
-        val = n[key]
-        if val:
-            parts.append(val)
-    return "- " + " — ".join(parts)
+    return "- " + " — ".join(n[k] for k in ("name", "title", "location", "email", "photo_url", "profile_url") if n[k])
 
 
-def _pick_owner(contacts: list[dict], explicit: str | None) -> str:
-    if explicit and str(explicit).strip():
-        return str(explicit).strip()
-    for c in contacts:
-        title = (c.get("title") or "").strip()
-        name = (c.get("name") or "").strip()
-        if name and title and OWNER_TITLE_RE.search(title):
-            return name
-    return ""
+def _pick_owner(contacts, explicit):
+    if isinstance(explicit, str) and explicit.strip():
+        return clean(explicit)
+    return next((c["name"] for c in contacts if c.get("name") and OWNER_TITLE_RE.search(c.get("title", ""))), "")
+
+
+def upsert_section(text: str, heading: str, body: str) -> str:
+    block = f"## {heading}\n{body.rstrip()}\n"
+    pattern = rf"^##[ \t]+{re.escape(heading)}[ \t]*\n.*?(?=^##[ \t]|\Z)"
+    if re.search(pattern, text, re.M | re.S):
+        return re.sub(pattern, lambda m: block + ("\n" if m.end() < len(text) else ""), text, count=1, flags=re.M | re.S)
+    return text.rstrip() + "\n\n" + block
 
 
 def upsert_contacts_section(text: str, bullets: list[str]) -> str:
-    block = "## Contacts\n" + "\n".join(bullets) + "\n"
-    if CONTACTS_HEADING.search(text):
-        # Replace existing section through next ## or EOF
-        return re.sub(
-            r"^##\s+Contacts\s*\n(?:.*?)(?=^##\s|\Z)",
-            block + "\n",
-            text,
-            count=1,
-            flags=re.M | re.S,
-        )
-    # Insert before ## Call log if present, else before ## Research, else append
-    for marker in ("## Call log", "## Research", "## Angle"):
-        if marker in text:
-            # Prefer: after Research / before Call log
-            if marker == "## Call log":
-                return text.replace(marker, block + "\n" + marker, 1)
-            if marker == "## Research":
-                # place Contacts after Research section start? Prefer before Call log already handled.
-                # Insert after Research heading block end is messy; put before Call log first.
-                continue
-            if marker == "## Angle":
-                # put Contacts near end — after Angle is wrong; skip
-                continue
-    if "## Research" in text:
-        # append Contacts after Research section: before next ## or EOF
-        m = re.search(r"(^##\s+Research\s*\n(?:.*?)(?=^##\s|\Z))", text, re.M | re.S)
-        if m:
-            end = m.end(1)
-            return text[:end].rstrip() + "\n\n" + block + "\n" + text[end:].lstrip("\n")
-    return text.rstrip() + "\n\n" + block + "\n"
+    # Retain manual and previously discovered contacts; an incomplete public
+    # sample is never an authoritative replacement for the existing directory.
+    m = re.search(r"^##[ \t]+Contacts[ \t]*\n(.*?)(?=^##[ \t]|\Z)", text, re.M | re.S)
+    body = m[1].strip() if m else ""
+    for bullet in bullets:
+        profile = next((linkedin_url(u, "in") for u in re.findall(r"https?://\S+", bullet) if linkedin_url(u, "in")), "")
+        if bullet not in body.splitlines() and not (profile and profile in body):
+            body = (body + "\n" + bullet).strip()
+    return upsert_section(text, "Contacts", body)
 
 
 def resolve_note(vault: Path, row: dict) -> Path | None:
-    path_s = (row.get("path") or "").strip()
-    if path_s:
-        p = Path(path_s)
-        if p.is_file():
-            return p
-    slug = (row.get("slug") or "").strip().removesuffix(".md")
-    if slug:
-        cand = vault / "Businesses" / f"{slug}.md"
-        if cand.is_file():
-            return cand
-        # fuzzy stem match
-        for p in iter_notes(vault):
-            if p.stem == slug:
-                return p
+    root = (vault / "Businesses").resolve()
+    if not root.is_relative_to(vault.resolve()):
+        return None
+    supplied = row.get("path")
+    slug = row.get("slug")
+    if supplied:
+        if not isinstance(supplied, str):
+            return None
+        path = Path(supplied)
+        if not path.is_absolute():
+            path = vault / path
+        if path.is_symlink() or not path.resolve().is_relative_to(root):
+            return None
+        if path.is_file() and path.suffix == ".md":
+            if slug and slug.removesuffix(".md") != path.stem:
+                return None
+            return path.resolve()
+    if isinstance(slug, str) and slug and Path(slug).name == slug:
+        path = root / f"{slug.removesuffix('.md')}.md"
+        if path.is_file() and not path.is_symlink():
+            return path
     return None
 
 
-def apply_result_to_note(path: Path, row: dict, dry_run: bool = False) -> dict:
-    text = path.read_text(encoding="utf-8", errors="replace")
+def validate_row(row) -> None:
+    if not isinstance(row, dict):
+        raise ValueError("row must be an object")
+    for key in ("path", "slug", "linkedin_company", "owner"):
+        if row.get(key) is not None and not isinstance(row[key], str):
+            raise ValueError(f"{key} must be a string")
+    if row.get("linkedin_company") and not linkedin_url(row["linkedin_company"]):
+        raise ValueError("invalid LinkedIn company URL")
     contacts = row.get("contacts") or []
-    if not isinstance(contacts, list):
-        contacts = []
-    contacts = [_normalize_contact(c) for c in contacts if isinstance(c, dict)]
-    bullets = [_format_contact_bullet(c) for c in contacts]
-    if not bullets and not row.get("linkedin_company") and not row.get("owner"):
-        return {"path": str(path), "status": "skip_empty", "dry_run": dry_run}
+    if not isinstance(contacts, list) or not all(isinstance(c, dict) for c in contacts):
+        raise ValueError("contacts must be an array of objects")
+    for key in ("people", "hiring"):
+        if key in row and not isinstance(row[key], dict):
+            raise ValueError(f"{key} must be an object")
+    if "hiring" in row:
+        jobs = row["hiring"].get("jobs") or []
+        if not isinstance(jobs, list) or not all(isinstance(j, dict) for j in jobs):
+            raise ValueError("hiring.jobs must be an array of objects")
 
-    planned = {
-        "path": str(path),
-        "slug": path.stem,
-        "contacts_n": len(bullets),
-        "linkedin_company": (row.get("linkedin_company") or "").strip() or None,
-        "owner": None,
-        "dry_run": dry_run,
-    }
 
-    new_text = text
-    li_co = (row.get("linkedin_company") or "").strip()
-    if li_co:
-        # never touch website:
-        new_text = set_fm(new_text, "linkedin_company", li_co)
+def set_note_field(text: str, key: str, value: str) -> str:
+    """Quote data, not regex replacement syntax; only modify frontmatter."""
+    if not text.startswith("---"):
+        return text
+    parts = text.split("---", 2)
+    if len(parts) != 3:
+        return text
+    line = key + ": " + json.dumps(value, ensure_ascii=False)
+    pattern = rf"^{re.escape(key)}:[^\n]*$"
+    front = re.sub(pattern, lambda _: line, parts[1], count=1, flags=re.M) if re.search(pattern, parts[1], re.M) else parts[1].rstrip("\n") + "\n" + line + "\n"
+    return "---" + front + "---" + parts[2]
 
+
+def apply_result_to_note(path: Path, row: dict, dry_run=False) -> dict:
+    validate_row(row)
+    text = path.read_text(encoding="utf-8")
+    contacts = [_normalize_contact(c) for c in (row.get("contacts") or [])]
+    contacts = [c for c in contacts if c.get("name") and c["name"].lower() not in MASKED]
+    new = text
+    company = linkedin_url(row.get("linkedin_company") or "")
+    if company:
+        new = set_note_field(new, "linkedin_company", company)
     owner = _pick_owner(contacts, row.get("owner"))
-    if owner:
-        existing = fm_get(new_text, "owner")
-        if not existing or row.get("owner"):
-            new_text = set_fm(new_text, "owner", owner)
-            planned["owner"] = owner
+    if owner and (not fm_get(new, "owner") or row.get("owner")):
+        new = set_note_field(new, "owner", owner)
+    if contacts:
+        new = upsert_contacts_section(new, [_format_contact_bullet(c) for c in contacts])
+    if row.get("source") == "linkedin_public":
+        people = row.get("people") or {}
+        hiring = row.get("hiring") or {}
+        body = [f"- Checked: {row.get('checked_at', '')}", f"- People: {people.get('status', 'unknown')}; {len(contacts)} observed; public sample only.", f"- Hiring: {hiring.get('status', 'unknown')}; {hiring.get('observed_job_count', 0)} company-matched public listings.", f"- Coverage: partial. No listings does not establish that the company is not hiring.", f"- Stop reason: {hiring.get('stop_reason', '')}"]
+        for job in (hiring.get("jobs") or [])[:50]:
+            body.append("- " + clean(str(job.get("title", ""))) + " — " + clean(str(job.get("location", ""))) + " — " + clean(str(job.get("url", ""))))
+        new = upsert_section(new, "LinkedIn public check", "\n".join(body))
+    if new != text and not dry_run:
+        atomic_text(path, new)
+    return {"path": str(path), "slug": path.stem, "status": ("would_write" if dry_run else "wrote") if new != text else "unchanged", "contacts_n": len(contacts), "linkedin_company": company or None, "owner": owner or None}
+
+
+def merge_public_profile(vault: Path, row: dict, *, dry_run=False) -> bool:
+    """Lossless contact merge; current unknown hiring never masquerades as fresh yes."""
+    note = resolve_note(vault, row)
+    if note is None:
+        raise ValueError("result does not identify a note inside Businesses")
+    directory = vault / "Research" / "firms"
+    path = directory / f"{note.stem}.json"
+    if path.is_symlink() or not path.resolve().is_relative_to(vault.resolve()):
+        raise ValueError("unsafe profile path")
+    profile = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    if not isinstance(profile, dict):
+        raise ValueError("profile must be an object")
+    before = json.dumps(profile, sort_keys=True)
+    note_data = note_row(note, note.read_text(encoding="utf-8"))
+    for key, value in (("slug", note.stem), ("name", note_data["firm"]), ("website", note_data["website"])):
+        profile.setdefault(key, value)
+    li = dict(profile.get("linkedin") or {})
+    company = linkedin_url(row.get("linkedin_company") or "")
+    if company:
+        li["company_url"] = company
+    li.update(status=row.get("status", "unknown"), people=row.get("people", {}), checked_at=row.get("checked_at"), checks=row.get("checks", []), transport="public_html")
+    if row.get("company_id"):
+        li["company_id"] = row["company_id"]
+    profile["linkedin"] = li
+    existing = [dict(c) for c in profile.get("contacts", []) if isinstance(c, dict)]
+    for raw in (row.get("contacts") or []):
+        c = _normalize_contact(raw)
+        if not c.get("name") or c["name"].lower() in MASKED:
+            continue
+        entry = {**raw, **c, "source": "linkedin", "kind": "person"}
+        prior = next((p for p in existing if c["profile_url"] and p.get("profile_url") == c["profile_url"]), None)
+        if prior is not None:
+            prior.update({k: v for k, v in entry.items() if v not in (None, "")})
         else:
-            planned["owner"] = existing
+            existing.append(entry)
+    for c in existing:
+        if c.get("source") == "linkedin" and c.get("name"):
+            c["kind"] = "person"
+            c["poc_score"] = 5 + (4 if OWNER_TITLE_RE.search(c.get("title") or "") else 0) + (3 if c.get("email") and not c["email"].lower().startswith(("info@", "contact@", "office@", "hello@", "admin@", "team@")) else 0)
+    profile["contacts"] = existing
+    candidates = [c for c in existing if c.get("kind") == "person" and c.get("name") and c["name"].lower() not in MASKED]
+    if candidates:
+        best = max(candidates, key=lambda c: float(c.get("poc_score") or 0))
+        previous = profile.get("best_poc") or {}
+        if previous.get("kind") != "person" or float(best.get("poc_score") or 0) >= float(previous.get("poc_score") or 0):
+            profile["best_poc"] = dict(best)
+    if row.get("hiring"):
+        prior = profile.get("hiring") or {}
+        if row["hiring"].get("status") == "unknown" and prior.get("status") in {"hiring", "no_public_jobs_found"}:
+            profile["linkedin_last_successful_hiring"] = prior
+        profile["hiring"] = row["hiring"]
+    changed = before != json.dumps(profile, sort_keys=True)
+    if changed and not dry_run:
+        atomic_text(path, json.dumps(profile, ensure_ascii=False, indent=2) + "\n")
+    return changed
 
-    if bullets:
-        new_text = upsert_contacts_section(new_text, bullets)
 
-    stamp = datetime.now(ZoneInfo("America/Chicago")).strftime("%Y-%m-%d %H:%M %Z")
-    research_line = f"- {stamp}: contacts via enrich --layer contacts (LinkedIn lookup). linkedin.com not written to website."
-    if "## Research" in new_text:
-        if research_line not in new_text:
-            new_text = new_text.replace("## Research", f"## Research\n{research_line}", 1)
-    else:
-        new_text = new_text.rstrip() + f"\n\n## Research\n{research_line}\n"
-
-    planned["status"] = "would_write" if dry_run else "wrote"
-    planned["bullets"] = bullets
-    if dry_run:
-        print(json.dumps(planned, ensure_ascii=False))
-        return planned
-
-    path.write_text(new_text, encoding="utf-8")
-    print(json.dumps({k: planned[k] for k in ("path", "slug", "status", "contacts_n", "linkedin_company", "owner")}, ensure_ascii=False))
-    return planned
+def read_jsonl(path: Path):
+    with path.open(encoding="utf-8") as handle:
+        for number, line in enumerate(handle, 1):
+            if line.strip():
+                try:
+                    row = json.loads(line)
+                    validate_row(row)
+                    yield number, row, None
+                except (ValueError, TypeError) as error:
+                    yield number, None, str(error)
 
 
-def apply_results(vault: Path, results_path: Path, dry_run: bool = False) -> dict:
+def apply_results(vault: Path, results_path: Path, dry_run=False) -> dict:
+    stats = {"applied": 0, "skipped": 0, "missing_note": 0, "errors": 0, "changed": 0}
     if not results_path.is_file():
+        stats["errors"] = 1
         print(f"FAIL\tapply\tmissing {results_path}", file=sys.stderr)
-        return {"applied": 0, "skipped": 0, "missing_note": 0, "errors": 1}
-
-    applied = skipped = missing = 0
-    for line_no, line in enumerate(results_path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
-        line = line.strip()
-        if not line:
-            continue
+        return stats
+    for number, row, error in read_jsonl(results_path):
         try:
-            row = json.loads(line)
-        except json.JSONDecodeError as e:
-            print(f"FAIL\tline {line_no}\t{e}", file=sys.stderr)
-            continue
-        note = resolve_note(vault, row)
-        if not note:
-            missing += 1
-            print(f"missing_note\t{row.get('slug') or row.get('path')}")
-            continue
-        out = apply_result_to_note(note, row, dry_run=dry_run)
-        if out.get("status") == "skip_empty":
-            skipped += 1
-        else:
-            applied += 1
-    stats = {"applied": applied, "skipped": skipped, "missing_note": missing, "errors": 0}
-    print(f"apply\t{'dry-run' if dry_run else 'write'}\tapplied={applied}\tskipped={skipped}\tmissing_note={missing}")
+            if error:
+                raise ValueError(error)
+            note = resolve_note(vault, row)
+            if note is None:
+                stats["missing_note"] += 1
+                raise ValueError("note missing or outside vault")
+            # Validate/read the existing profile before mutating the note.
+            profile_changed = merge_public_profile(vault, row, dry_run=dry_run) if row.get("source") == "linkedin_public" else False
+            result = apply_result_to_note(note, row, dry_run)
+            stats["applied"] += 1
+            stats["changed"] += int(profile_changed or result["status"] in {"wrote", "would_write"})
+            print(json.dumps(result, ensure_ascii=False))
+        except (ValueError, TypeError, OSError) as error:
+            stats["errors"] += 1
+            print(f"FAIL\tline {number}\t{error}", file=sys.stderr)
+    print("apply\t" + json.dumps(stats))
     return stats
 
 
 def run(argv=None) -> int:
-    ap = argparse.ArgumentParser(prog="linkedin_contacts")
-    ap.add_argument("--category", default=None)
-    ap.add_argument("--practice", default=None)
-    ap.add_argument("--limit", type=int, default=0)
-    ap.add_argument("--slug", default=None)
-    ap.add_argument("--force", action="store_true", help="include notes that already have ## Contacts")
+    ap = argparse.ArgumentParser(description=__doc__)
+    for flag in ("category", "practice", "slug"):
+        ap.add_argument("--" + flag)
     ap.add_argument("--vault", default=str(DEFAULT_VAULT))
-    ap.add_argument("--dry-run", action="store_true")
-    ap.add_argument("--no-push", action="store_true", help="skip immediate GitHub backup (debug/tests only)")
-    ap.add_argument("--apply", default=None, metavar="PATH", help="apply linkedin-results JSONL onto notes")
+    ap.add_argument("--limit", type=int, default=0)
+    ap.add_argument("--force", action="store_true", help="queue-only: include existing contacts; fetch always refreshes hiring")
+    ap.add_argument("--dry-run", action="store_true", help="no network and no writes")
+    ap.add_argument("--no-push", action="store_true")
+    group = ap.add_mutually_exclusive_group()
+    group.add_argument("--apply", metavar="JSONL")
+    group.add_argument("--queue", metavar="JSONL", help="fetch exactly these queued vault notes")
+    ap.add_argument("--queue-only", action="store_true", help="legacy queue export without fetching")
+    ap.add_argument("--output", help="results JSONL; default Sources/runs/linkedin-results-DATE.jsonl")
+    ap.add_argument("--company-url", help="explicit company URL, requires --slug")
+    ap.add_argument("--jobs-only", action="store_true")
+    ap.add_argument("--max-jobs", type=int, default=50)
+    ap.add_argument("--job-pages", type=int, default=3)
+    ap.add_argument("--delay", type=float, default=2)
     args = ap.parse_args(argv)
-
-    vault = Path(args.vault)
+    if args.limit < 0 or not 1 <= args.max_jobs <= 500 or not 1 <= args.job_pages <= 20 or not 1 <= args.delay <= 60:
+        ap.error("limit >= 0; max-jobs 1..500; job-pages 1..20; delay 1..60")
+    if args.company_url and (not args.slug or not linkedin_url(args.company_url)):
+        ap.error("--company-url requires --slug and a valid public LinkedIn company URL")
+    if args.queue_only and args.apply:
+        ap.error("--queue-only cannot be combined with --apply")
+    vault = Path(args.vault).expanduser().resolve()
+    if not (vault / "Businesses").is_dir():
+        ap.error("vault Businesses directory does not exist; run doctor --init first")
     if args.apply:
-        stats = apply_results(vault, Path(args.apply), dry_run=args.dry_run)
-        try:
-            from push_backup import maybe_after_mutation
-
-            maybe_after_mutation(
-                mutated=(not args.dry_run) and stats.get("applied", 0) > 0,
-                dry_run=args.dry_run,
-                no_push=args.no_push,
-                vault=vault,
-            )
-        except Exception as e:
-            print(f"push-backup_error\t{e}", file=sys.stderr)
-        return 0
-
-    rows = list_candidates(
-        vault,
-        category=args.category,
-        practice=args.practice,
-        limit=args.limit,
-        slug=args.slug,
-        force=args.force,
-    )
-    write_queue(vault, rows, dry_run=args.dry_run)
-    # queue JSONL is vault Sources write; still not a Businesses mutation — skip auto-push
-    if args.dry_run:
-        print("push-backup\tskip\tdry-run")
+        stats = apply_results(vault, Path(args.apply), args.dry_run)
     else:
-        print("push-backup\tskip\tqueue-only")
-    return 0
+        if args.queue:
+            rows = []
+            for number, row, error in read_jsonl(Path(args.queue)):
+                if error or resolve_note(vault, row) is None:
+                    ap.error(f"queue line {number}: {error or 'note missing or outside vault'}")
+                note = resolve_note(vault, row)
+                # Read source-of-truth note fields, not arbitrary URLs in a queue.
+                candidates = list_candidates(vault, slug=note.stem, force=True)
+                if not candidates:
+                    ap.error(f"queue line {number}: note not eligible")
+                rows.append(candidates[0])
+            if args.limit:
+                rows = rows[:args.limit]
+        else:
+            rows = list_candidates(vault, category=args.category, practice=args.practice, limit=args.limit, slug=args.slug, force=(args.force or not args.queue_only))
+        if args.company_url:
+            rows = [row for row in rows if row["slug"] == args.slug.removesuffix(".md")]
+            for row in rows:
+                row["linkedin_company"] = linkedin_url(args.company_url)
+        if args.slug and not rows:
+            ap.error("no exact matching note found")
+        if args.dry_run or args.queue_only:
+            write_queue(vault, rows, args.dry_run)
+            print("push-backup\tskip\t" + ("dry-run" if args.dry_run else "queue-only"))
+            return 0
+        write_queue(vault, rows)
+        results = Path(args.output) if args.output else vault / "Sources" / "runs" / f"linkedin-results-{vault_day()}.jsonl"
+        client = PublicHTTP(delay=args.delay)
+        outputs = [fetch_company(row, client, max_jobs=args.max_jobs, max_pages=args.job_pages, jobs_only=args.jobs_only) for row in rows]
+        atomic_text(results, "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in outputs))
+        print(f"results\t{results}\trows={len(outputs)}")
+        stats = apply_results(vault, results)
+    if not args.dry_run and not args.no_push:
+        from push_backup import maybe_after_mutation
+        maybe_after_mutation(mutated=stats["changed"] > 0, dry_run=False, no_push=False, vault=vault)
+    return 2 if stats["errors"] else 0
 
 
 if __name__ == "__main__":
-    sys.exit(run())
+    raise SystemExit(run())

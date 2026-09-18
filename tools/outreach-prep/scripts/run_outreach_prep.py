@@ -5,16 +5,15 @@ Pipeline (prep only; outbound calls stay operator-gated):
   1. coverage-check → specialty-directory if thin (unless --skip-specialty)
   2. queue notes with official websites
   3. website-search crawl → Research/firms/<slug>.json
-  4. LinkedIn company→people (default ON; --skip-linkedin to opt out)
+  4. Public LinkedIn company people + hiring (default ON; --skip-linkedin to opt out)
   5. enrich emails if profiles lack addresses
   6. build_poc / re-rank best_poc (named LI/web decision-maker beats info@)
   7. shortlist JSON under Research/firms/shortlists/
   8. push-backup on real writes
 
-LinkedIn: signed-in operator session (never commit cookies).
-Prefer website-to-api replay if a LinkedIn recipe exists; else UI path.
-Queue JSONL + apply results via outreach-leads enrich --layer contacts.
-Blocked profiles → linkedin.status=blocked / names_masked; continue the week.
+LinkedIn uses anonymous public HTML only. No keys, cookies or signed-in session.
+People coverage is a public sample; unknown hiring is not a negative result.
+Legacy structured JSONL can still be imported with --linkedin-results.
 """
 from __future__ import annotations
 
@@ -200,7 +199,7 @@ def run_cmd(cmd: list[str], *, dry_run: bool, label: str) -> tuple[int, str, str
 
 
 def fm_get(text: str, key: str) -> str:
-    m = re.search(rf"^{re.escape(key)}:\s*\"?([^\n\"]*)\"?\s*$", text, re.M)
+    m = re.search(rf"^{re.escape(key)}:[ \t]*\"?([^\n\"]*)\"?[ \t]*$", text, re.M)
     if not m:
         return ""
     return (m.group(1) or "").strip()
@@ -275,7 +274,7 @@ def queue_firms(vault: Path, category: str, practice: str | None, max_firms: int
             continue
         items.append(
             {
-                "path": str(path),
+                "path": str(path.resolve()),
                 "slug": path.stem,
                 "name": fm_get(text, "name") or path.stem,
                 "website": website,
@@ -467,6 +466,10 @@ def build_shortlist(vault: Path, category: str, slugs: list[str], day: str) -> P
             "inbox_fallback": p.get("inbox_fallback"),
             "poc_score": (best or {}).get("poc_score") if best else None,
             "emails_n": len(p.get("emails") or []),
+            "linkedin_people": (p.get("linkedin") or {}).get("people"),
+            "hiring": {key: (p.get("hiring") or {}).get(key) for key in (
+                "status", "is_hiring", "observed_job_count", "checked_at", "stop_reason"
+            )},
         }
         ranked.append(entry)
     ranked.sort(
@@ -511,9 +514,23 @@ def merge_linkedin_into_profiles(vault: Path, results_path: Path, *, category: s
             row = json.loads(line)
         except json.JSONDecodeError:
             continue
+        if not isinstance(row, dict):
+            continue
         stats["rows"] += 1
         slug = (row.get("slug") or "").strip()
-        if not slug:
+        if not slug or Path(slug).name != slug or slug in {".", ".."}:
+            continue
+        if row.get("source") == "linkedin_public":
+            # The public importer owns lossless merging and partial/stale evidence.
+            outreach = find_tool_root("outreach")
+            if outreach and str(outreach / "scripts") not in sys.path:
+                sys.path.insert(0, str(outreach / "scripts"))
+            from linkedin_contacts import merge_public_profile, validate_row
+            validate_row(row)
+            merge_public_profile(vault, row)
+            stats["merged"] += 1
+            stats["blocked"] += int(row.get("status") in {"blocked", "rate_limited"})
+            stats["masked"] += int((row.get("people") or {}).get("status") == "names_masked")
             continue
         profile_path = firms_dir / f"{slug}.json"
         profile = load_profile(profile_path)
@@ -547,7 +564,8 @@ def merge_linkedin_into_profiles(vault: Path, results_path: Path, *, category: s
         profile["linkedin"] = li
 
         existing = [c for c in (profile.get("contacts") or []) if isinstance(c, dict)]
-        existing = [c for c in existing if (c.get("source") or "").lower() != "linkedin"]
+        if contacts_in and not blocked and not names_masked:
+            existing = [c for c in existing if (c.get("source") or "").lower() != "linkedin"]
         for c in contacts_in:
             if not isinstance(c, dict):
                 continue
@@ -705,18 +723,24 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument(
         "--skip-linkedin",
         action="store_true",
-        help="opt out of LinkedIn company→people (default ON)",
+        help="opt out of public LinkedIn people + hiring (default ON)",
     )
     ap.add_argument(
         "--linkedin-results",
         default=None,
-        help="path to linkedin-results JSONL to apply (default: Sources/runs/linkedin-results-YYYY-MM-DD.jsonl if present)",
+        help="import this JSONL instead of fetching fresh public LinkedIn results",
     )
+    ap.add_argument("--linkedin-max-jobs", type=int, default=50)
+    ap.add_argument("--linkedin-job-pages", type=int, default=3)
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--no-push", action="store_true")
     args = ap.parse_args(argv)
+    if args.max_firms < 1 or not 1 <= args.linkedin_max_jobs <= 500 or not 1 <= args.linkedin_job_pages <= 20:
+        ap.error("max-firms >= 1; linkedin-max-jobs 1..500; linkedin-job-pages 1..20")
+    if args.linkedin_results and not Path(args.linkedin_results).is_file():
+        ap.error("--linkedin-results file does not exist")
 
-    vault = Path(args.vault)
+    vault = Path(args.vault).expanduser().resolve()
     if not vault.is_dir():
         print(f"FAIL: vault missing: {vault}", file=sys.stderr)
         return 2
@@ -725,6 +749,7 @@ def main(argv: list[str] | None = None) -> int:
     day = vault_day()
     log: list[str] = []
     wrote = False
+    applied_linkedin_results = None
 
     print(f"# outreach-prep — {category}" + (f" / {practice}" if practice else ""))
     print(f"vault={vault}")
@@ -882,6 +907,9 @@ def main(argv: list[str] | None = None) -> int:
                 for k in ("contacts", "best_poc", "inbox_fallback"):
                     if prior.get(k) is not None and profile.get(k) in (None, []):
                         profile[k] = prior[k]
+                for k in ("linkedin", "hiring", "linkedin_last_successful_hiring"):
+                    if prior.get(k) is not None:
+                        profile[k] = prior[k]
             write_json(profile_path, profile)
             profiles_written.append(slug)
             wrote = True
@@ -890,127 +918,43 @@ def main(argv: list[str] | None = None) -> int:
         if research_errors:
             log.append("research errors: " + "; ".join(research_errors[:8]))
 
-    # --- 5. LinkedIn company→people (default ON) ---
+    # --- 5. Public LinkedIn company people + hiring (default ON) ---
     if args.skip_linkedin:
         log.append("linkedin skipped via --skip-linkedin")
         print("\n## linkedin\n(skipped via --skip-linkedin)")
     elif args.dry_run:
-        print("\n## linkedin\n(dry-run: would queue company→people for week firms)")
-        print("  session: signed-in LinkedIn (operator cookies, not in git)")
-        print("  prefer: website-to-api LinkedIn recipe replay if present; else UI People tab")
-        for q in queue[:10]:
-            print(f"  would queue {q['slug']}")
-        if len(queue) > 10:
-            print(f"  … +{len(queue) - 10} more")
-        log.append(f"linkedin dry-run queue planned={len(queue)}")
+        print(f"\n## linkedin\n(dry-run: would fetch public people + hiring for {len(queue)} queued firms; no login or API keys)")
+        log.append(f"linkedin public dry-run planned={len(queue)}")
+    elif not linkedin_py:
+        print("\n## linkedin\n(skip: linkedin_contacts.py missing)")
+        log.append("linkedin public SKIPPED — script missing")
     else:
-        print("\n## linkedin")
-        print("session: signed-in LinkedIn (operator cookies, not in git)")
-        print("prefer website-to-api replay if LinkedIn recipe exists; else UI path")
-        queue_cmd = None
-        if outreach_cli:
-            queue_cmd = [
-                "python3",
-                str(outreach_cli),
-                "enrich",
-                "--layer",
-                "contacts",
-                "--category",
-                category,
-                "--limit",
-                str(args.max_firms),
-                "--vault",
-                str(vault),
-                "--force",
-            ]
-            if practice:
-                queue_cmd.extend(["--practice", practice])
-            if args.no_push:
-                queue_cmd.append("--no-push")
-        elif linkedin_py:
-            queue_cmd = [
-                "python3",
-                str(linkedin_py),
-                "--category",
-                category,
-                "--limit",
-                str(args.max_firms),
-                "--vault",
-                str(vault),
-                "--force",
-            ]
-            if practice:
-                queue_cmd.extend(["--practice", practice])
-            if args.no_push:
-                queue_cmd.append("--no-push")
-        if queue_cmd:
-            rc, out, _ = run_cmd(queue_cmd, dry_run=False, label="linkedin queue (enrich --layer contacts)")
-            log.append(f"linkedin queue exit={rc}")
-            li_queue = vault / "Sources" / "runs" / f"linkedin-queue-{day}.jsonl"
-            if li_queue.is_file():
-                wrote = True
-                log.append(f"linkedin queue → {li_queue.relative_to(vault)}")
-                print(
-                    "COORDINATOR: fill Sources/runs/linkedin-results-"
-                    f"{day}.jsonl via signed-in LinkedIn session "
-                    "(or website-to-api LinkedIn recipe). Then re-run with "
-                    "--linkedin-results or drop file at default path."
-                )
+        if args.linkedin_results:
+            results = Path(args.linkedin_results)
+            cmd = [sys.executable, str(linkedin_py), "--apply", str(results)]
         else:
-            print("(skip queue: linkedin_contacts / outreach_leads missing)")
-            log.append("linkedin queue SKIPPED — tools missing")
-
-        results = find_linkedin_results(vault, day, args.linkedin_results)
-        if results:
-            apply_cmd = None
-            if outreach_cli:
-                apply_cmd = [
-                    "python3",
-                    str(outreach_cli),
-                    "enrich",
-                    "--layer",
-                    "contacts",
-                    "--apply",
-                    str(results),
-                    "--vault",
-                    str(vault),
-                ]
-                if args.no_push:
-                    apply_cmd.append("--no-push")
-            elif linkedin_py:
-                apply_cmd = [
-                    "python3",
-                    str(linkedin_py),
-                    "--apply",
-                    str(results),
-                    "--vault",
-                    str(vault),
-                ]
-                if args.no_push:
-                    apply_cmd.append("--no-push")
-            if apply_cmd:
-                rc, _, _ = run_cmd(apply_cmd, dry_run=False, label=f"linkedin apply {results.name}")
-                log.append(f"linkedin apply exit={rc} file={results.name}")
-                if rc == 0:
-                    wrote = True
+            # A run-scoped path avoids silently reusing another vertical's results.
+            token = vault_now().strftime("%Y%m%dT%H%M%S%f")
+            scope = category_slug(category + "-" + (practice or "all"))
+            results = vault / "Sources" / "runs" / f"linkedin-results-{scope}-{token}.jsonl"
+            cmd = [sys.executable, str(linkedin_py), "--queue", str(queue_path), "--output", str(results),
+                   "--max-jobs", str(args.linkedin_max_jobs), "--job-pages", str(args.linkedin_job_pages)]
+        cmd.extend(["--vault", str(vault), "--no-push"])
+        rc, _, _ = run_cmd(cmd, dry_run=False, label="linkedin public people + hiring")
+        log.append(f"linkedin public exit={rc} results={results}")
+        if rc == 0 and results.is_file():
+            applied_linkedin_results = results
             merge_stats = merge_linkedin_into_profiles(vault, results, category=category)
-            log.append(
-                "linkedin merge profiles: "
-                f"rows={merge_stats['rows']} merged={merge_stats['merged']} "
-                f"blocked={merge_stats['blocked']} masked={merge_stats['masked']} "
-                f"missing={merge_stats['missing_profile']}"
-            )
-            print(
-                f"firm JSON merge: merged={merge_stats['merged']} "
-                f"blocked={merge_stats['blocked']} names_masked={merge_stats['masked']}"
-            )
+            log.append("linkedin merge profiles: " + json.dumps(merge_stats))
+            hiring_counts = Counter()
+            for line in results.read_text(encoding="utf-8").splitlines():
+                if line.strip():
+                    row = json.loads(line)
+                    hiring_counts[(row.get("hiring") or {}).get("status", "not_checked")] += 1
+            log.append("linkedin hiring outcomes (public coverage only): " + json.dumps(hiring_counts))
             wrote = True
         else:
-            print(
-                f"(no linkedin-results-{day}.jsonl yet — queue written; "
-                "coordinator browser step pending; week continues)"
-            )
-            log.append("linkedin results pending — queue only this pass")
+            log.append("linkedin enrichment failed; no fresh hiring conclusion; week continues")
 
     # --- 6. enrich emails if needed ---
     need_email_slugs = []
@@ -1111,6 +1055,12 @@ def main(argv: list[str] | None = None) -> int:
     else:
         print("\n## build-poc\nTODO: build_poc.py missing under outreach-leads/scripts")
         log.append("TODO: build_poc.py missing — named POC ranking not run")
+
+    # POC ranking rewrites linkedin metadata; restore this run's public evidence
+    # without re-fetching or changing the website-derived rankings.
+    if applied_linkedin_results is not None and not args.dry_run:
+        stats = merge_linkedin_into_profiles(vault, applied_linkedin_results, category=category)
+        log.append(f"linkedin evidence restored after POC: merged={stats['merged']}")
 
     # --- 8. shortlist ---
     shortlist_path = None
